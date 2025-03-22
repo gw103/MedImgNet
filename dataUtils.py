@@ -8,3 +8,5 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt # plotting
 import os # accessing directory structure
 
+print("hello")
+
