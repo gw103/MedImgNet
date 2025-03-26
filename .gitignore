@@ -4,6 +4,16 @@ med/
 # Ignore Python bytecode files
 *.pyc
 
-# Ignore other common files
+# Ignore __pycache__ directories
 __pycache__/
+
+# Ignore logs
 *.log
+
+# Ignore Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore any other common files
+*.DS_Store
+*.env
+*.vscode/
