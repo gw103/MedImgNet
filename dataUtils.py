@@ -7,6 +7,9 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 import os
+from torchvision import transforms
+from google.cloud import storage
+
 
 def load_images_from_gcs(bucket_name, directory='datasets/nih-chest-xrays/images_001/images/', num_images=None):
     """
@@ -20,7 +23,7 @@ def load_images_from_gcs(bucket_name, directory='datasets/nih-chest-xrays/images
     Returns:
     - images: list of numpy arrays, the loaded images
     """
-    # Initialize the Google Cloud Storage client
+    # Initialize the Google Cloud Storage client 
     client = storage.Client(project='My First Project')
     bucket = client.get_bucket(bucket_name)
     
@@ -44,16 +47,10 @@ def load_images_from_gcs(bucket_name, directory='datasets/nih-chest-xrays/images
     
     return images
 
-from google.cloud import storage
-import io
-from PIL import Image
-import numpy as np
-import torch
-from torch.utils.data import Dataset
-import pandas as pd
+
 
 class ImageLabelDataset(Dataset):
-    def __init__(self, bucket_name, csv_file='datasets/nih-chest-xrays/Data_Entry_2017.csv', directories=None, transform=None):
+    def __init__(self, bucket_name, csv_file='datasets/nih-chest-xrays/Data_Entry_2017_cleaned.csv', directories=None, transform=None):
         """
         Args:
             csv_file (string): Path to the CSV file with image indices and labels (can be on GCS).
@@ -72,20 +69,20 @@ class ImageLabelDataset(Dataset):
         
         # Define the label encoding map
         self.label_map = {
-            'Atelectasis': 1,
-            'Cardiomegaly': 2,
-            'Effusion': 3,
-            'Infiltration': 4,
-            'Mass': 5,
-            'Nodule': 6,
-            'Pneumonia': 7,
-            'Pneumothorax': 8,
-            'Consolidation': 9,
-            'Edema': 10,
-            'Emphysema': 11,
-            'Fibrosis': 12,
-            'Pleural_Thickening': 13,
-            'Hernia': 14
+            'Atelectasis': 0,
+            'Cardiomegaly': 1,
+            'Effusion': 2,
+            'Infiltration': 3,
+            'Mass': 4,
+            'Nodule': 5,
+            'Pneumonia': 6,
+            'Pneumothorax': 7,
+            'Consolidation': 8,
+            'Edema': 9,
+            'Emphysema': 10,
+            'Fibrosis': 11,
+            'Pleural_Thickening': 12,
+            'Hernia': 13
         }
         
         # Initialize parameters
@@ -98,7 +95,7 @@ class ImageLabelDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        """Returns the image and its corresponding encoded label."""
+        """Returns the image and its corresponding multi-hot encoded label."""
         # Get the image index and label from the DataFrame
         image_index = self.data.iloc[idx]['Image Index']
         label_str = self.data.iloc[idx]['Finding Labels']
@@ -106,14 +103,18 @@ class ImageLabelDataset(Dataset):
         # Encode the label (handle multiple labels)
         labels = label_str.split('|')  # Some samples might have multiple labels
         encoded_labels = [self.label_map[label.strip()] for label in labels if label.strip() in self.label_map]
-        label = encoded_labels  # If multiple labels, you could choose how to handle this (e.g., list or multi-hot encoding)
+        
+        # Create a multi-hot encoded label vector (14 classes in total)
+        multi_hot_label = torch.zeros(len(self.label_map), dtype=torch.long)
+        for label in encoded_labels:
+            multi_hot_label[label] = 1
         
         # Try to construct the image file path in each directory
         image_path = None
         for directory in self.directories:
             image_path = f"{directory}{image_index}"
             blob = self.bucket.blob(image_path)
-            if blob.exists():  # If the image exists in this directory, break
+            if blob.exists(): 
                 break
         if image_path is None:
             raise FileNotFoundError(f"Image {image_index}.png not found in any of the specified directories.")
@@ -121,11 +122,40 @@ class ImageLabelDataset(Dataset):
         # Download the image from GCS as bytes
         image_data = blob.download_as_bytes()
         
-        # Open the image using PIL
+        # Open the image 
         image = Image.open(io.BytesIO(image_data))
 
-        # Apply any transformations, if specified
         if self.transform:
             image = self.transform(image)
         
-        return image, label
+        return image, multi_hot_label
+
+if __name__ == "__main__":
+    bucket_name = 'med-img-net'
+    directories = [
+    'datasets/nih-chest-xrays/images_001/images/',
+    'datasets/nih-chest-xrays/images_002/images/',
+    'datasets/nih-chest-xrays/images_003/images/',
+    'datasets/nih-chest-xrays/images_004/images/',
+    'datasets/nih-chest-xrays/images_005/images/',
+    'datasets/nih-chest-xrays/images_006/images/',
+    'datasets/nih-chest-xrays/images_007/images/',
+    'datasets/nih-chest-xrays/images_008/images/',
+    'datasets/nih-chest-xrays/images_009/images/',
+    'datasets/nih-chest-xrays/images_010/images/',
+    'datasets/nih-chest-xrays/images_011/images/',
+    'datasets/nih-chest-xrays/images_012/images/'
+]
+    
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor()
+    ])
+
+    dataset = ImageLabelDataset(bucket_name, directories=directories, transform=transform)
+    dataloader = DataLoader(dataset, batch_size=32, num_workers=4,shuffle=True)
+    for i in tqdm(range(10), desc="Epochs", position=0):
+        for images, labels in tqdm(dataloader, desc="Batches", position=1, leave=False):
+            continue
+            
+            
