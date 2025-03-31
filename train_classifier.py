@@ -57,12 +57,14 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
         for images, labels in tqdm(train_loader, desc="Training":
             i += 1
             images = images.to(device)
+            
             labels = labels.to(device).float()
 
             optimizer.zero_grad()
             outputs = model(images)
             loss = criterion(outputs, labels)
-            print(loss)
+            if i % 100 == 0:
+                print(f'Batch {i}: Loss {loss.item():.4f}', flush=True)
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
