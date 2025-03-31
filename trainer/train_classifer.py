@@ -60,7 +60,6 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
             optimizer.zero_grad()
             outputs = model(images)
             loss = criterion(outputs, labels)
-            print(loss)
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
