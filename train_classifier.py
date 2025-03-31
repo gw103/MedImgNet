@@ -29,14 +29,13 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     model = Classifier().to(device)
     
     # Freeze everything first
-    for param in model.model.parameters():
-        param.requires_grad = False
+    for name, param in model.model.named_parameters():
+        if 'conv1' in name or 'fc' in name:
+            param.requires_grad = True
+        else:
+            param.requires_grad = False
 
-    # Unfreeze first conv layer 
-    model.model.conv1.requires_grad = True
 
-    # Unfreeze final fully connected layer
-    model.model.fc.requires_grad = True
 
 
     criterion = nn.BCEWithLogitsLoss()
