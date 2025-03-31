@@ -75,7 +75,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
         exact_match_count = 0
 
         with torch.no_grad():
-            for images, labels in tqdm(test_loader, desc="Evaluating", leave=False):
+            for images, labels in tqdm(test_loader, desc="Evaluating"):
                 images = images.to(device)
                 labels = labels.to(device).float()
                 outputs = model(images)
