@@ -28,10 +28,16 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
 
     model = Classifier().to(device)
     
-    if hasattr(model, 'model') and hasattr(model.model, 'fc'):
-        for param in model.model.parameters():
-            param.requires_grad = False
-        model.model.fc.requires_grad = True  
+    # Freeze everything first
+    for param in model.model.parameters():
+        param.requires_grad = False
+
+    # Unfreeze first conv layer 
+    model.model.conv1.requires_grad = True
+
+    # Unfreeze final fully connected layer
+    model.model.fc.requires_grad = True
+
 
     criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)

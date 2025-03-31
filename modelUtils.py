@@ -7,6 +7,7 @@ class Classifier(nn.Module):
     def __init__(self):
         super(Classifier, self).__init__()
         self.model = torchvision.models.resnet101(pretrained=True)
+        self.model.conv1 = nn.Conv2d(in_channels=1, out_channels=64, kernel_size=7, stride=2, padding=3, bias=False)
         # Change the final layer to output 14 classes
 
         self.model.fc = nn.Linear(self.model.fc.in_features, 14)
