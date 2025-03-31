@@ -1,5 +1,7 @@
 # Ignore virtual environment
-med/
+cuda-keyring_1.1-1_all.deb
+kobenet/
+
 
 # Ignore Python bytecode files
 *.pyc
