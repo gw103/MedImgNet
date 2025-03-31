@@ -6,8 +6,10 @@ import torchvision
 class Classifier(nn.Module):
     def __init__(self):
         super(Classifier, self).__init__()
-        self.model = torchvision.models.resnet18(pretrained=True)
-        self.model.fc = nn.Linear(512, 14)
+        self.model = torchvision.models.resnet101(pretrained=True)
+        # Change the final layer to output 14 classes
+
+        self.model.fc = nn.Linear(self.model.fc.in_features, 14)
 
     def forward(self, x):
         return self.model(x)
