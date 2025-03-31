@@ -8,14 +8,52 @@ from torchvision import transforms
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from sklearn.metrics import f1_score, precision_score, recall_score
+def validate_model(model, val_loader, device, criterion):
+    """
+    Runs the validation loop once and returns scalar averages for the metrics.
+    """
+    model.eval()
+    val_running_loss = 0.0
+    val_correct = 0
+    val_total = 0
+    val_all_preds = []
+    val_all_labels = []
+    val_exact_match_count = 0
 
-def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_dir, train_split=0.8):
+    with torch.no_grad():
+        for images, labels in tqdm(val_loader, desc="Validating", leave=False):
+            images = images.to(device)
+            labels = labels.to(device).float()
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            val_running_loss += loss.item()
+            predicted = (torch.sigmoid(outputs) > 0.5).float()
+
+            val_correct += (predicted == labels).sum().item()
+            val_total += labels.numel()
+
+            val_all_preds.append(predicted.cpu())
+            val_all_labels.append(labels.cpu())
+            # Count samples where all labels match exactly
+            val_exact_match_count += (predicted == labels).all(dim=1).sum().item()
+
+    avg_loss = val_running_loss / len(val_loader)
+    accuracy = val_correct / val_total
+    all_preds_tensor = torch.cat(val_all_preds, dim=0).numpy()
+    all_labels_tensor = torch.cat(val_all_labels, dim=0).numpy()
+    exact_match = val_exact_match_count / len(all_preds_tensor)
+    f1 = f1_score(all_labels_tensor, all_preds_tensor, average='macro', zero_division=0)
+
+    return avg_loss, accuracy, exact_match, f1
+
+
+
+
+def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_dir, train_split=0.6):
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor()
     ])
-    torch.cuda.empty_cache()
-
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}',flush=True)
@@ -26,12 +64,17 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     test_size = len(dataset) - train_size
 
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+    val_dataset, test_dataset = random_split(test_dataset, [int(test_size/2), int(test_size/2)])
+
     print("Train dataset length: ", len(train_dataset),flush=True)
     print("Test dataset length: ", len(test_dataset),flush=True)
+    print("Val dataset length: ", len(val_dataset),flush=True)
     print("*"*10+"Loading data"+"*"*10,flush=True)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
+
     print("*"*10+"Data loaded"+"*"*10,flush=True)
     model = Classifier().to(device)
     print("*"*10+"Freezing layers"+"*"*10,flush=True)
@@ -82,7 +125,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
         exact_match_count = 0
 
         with torch.no_grad():
-            for images, labels in tqdm(test_loader, desc="Evaluating", leave=False):
+            for images, labels in tqdm(test_loader, desc="testing", leave=False):
                 images = images.to(device)
                 labels = labels.to(device).float()
                 outputs = model(images)
@@ -93,11 +136,8 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
 
                 all_preds.append(predicted.cpu())
                 all_labels.append(labels.cpu())
-
-                # Exact match ratio
+            
                 exact_match_count += (predicted == labels).all(dim=1).sum().item()
-
-        # Aggregate and calculate metrics
         accuracy = correct / total
         all_preds_tensor = torch.cat(all_preds, dim=0).numpy()
         all_labels_tensor = torch.cat(all_labels, dim=0).numpy()
@@ -111,9 +151,34 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
         accs.append(accuracy)
         exact_matches.append(exact_match)
         f1s.append(f1)
+    with open('losses.txt', 'w') as f:
+        for item in losses:
+            f.write("%s\n" % item)
+    with open('accs.txt', 'w') as f:
+        for item in accs:
+            f.write("%s\n" % item)
+    with open('exact_matches.txt', 'w') as f:
+        for item in exact_matches:
+            f.write("%s\n" % item)
+    with open('f1s.txt', 'w') as f:
+        for item in f1s:
+            f.write("%s\n" % item)
+    
 
     torch.save(model.state_dict(), model_dir)
     print(f'Model saved to {model_dir}')
+    val_loss, val_accuracy, val_exact_match, val_f1 = validate_model(model, val_loader, device, criterion)
+    print(f'Validation Loss: {val_loss:.4f} | Validation Accuracy: {val_accuracy:.4f} | '
+          f'Validation Exact Match: {val_exact_match:.4f} | Validation F1: {val_f1:.4f}', flush=True)
+    
+    with open('val_loss.txt', 'w') as f:
+        f.write(f"{val_loss}\n")
+    with open('val_acc.txt', 'w') as f:
+        f.write(f"{val_accuracy}\n")
+    with open('val_exact_match.txt', 'w') as f:
+        f.write(f"{val_exact_match}\n")
+    with open('val_f1.txt', 'w') as f:
+        f.write(f"{val_f1}\n")
     return losses, accs, exact_matches, f1s
 
 
