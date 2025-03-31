@@ -16,23 +16,23 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     ])
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f'Using device: {device}')
+    print(f'Using device: {device}',flush=True)
 
     dataset = ImageLabelDataset(transform=transform)
-    print("Dataset length: ", len(dataset))
+    print("Dataset length: ", len(dataset),flush=True)
     train_size = int(len(dataset) * train_split)
     test_size = len(dataset) - train_size
 
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
-    print("Train dataset length: ", len(train_dataset))
-    print("Test dataset length: ", len(test_dataset))
-    print("*"*10+"Loading data"+"*"*10)
+    print("Train dataset length: ", len(train_dataset),flush=True)
+    print("Test dataset length: ", len(test_dataset),flush=True)
+    print("*"*10+"Loading data"+"*"*10,flush=True)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
-    print("*"*10+"Data loaded"+"*"*10)
+    print("*"*10+"Data loaded"+"*"*10,flush=True)
     model = Classifier().to(device)
-    print("*"*10+"Freezing layers"+"*"*10)
+    print("*"*10+"Freezing layers"+"*"*10,flush=True)
     for name, param in model.model.named_parameters():
         if 'conv1' in name or 'fc' in name:
             param.requires_grad = True
@@ -49,7 +49,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     f1s = []
 
     for epoch in tqdm(range(num_epochs)):
-        print(epoch)
+        print(epoch,flush=True)
         # Training Phase
         model.train()
         running_loss = 0.0
@@ -99,7 +99,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
         exact_match = exact_match_count / len(all_preds_tensor)
         f1 = f1_score(all_labels_tensor, all_preds_tensor, average='macro', zero_division=0)
 
-        print(f'Epoch {epoch+1}/{num_epochs} | Loss: {avg_loss:.4f} | Accuracy: {accuracy:.4f} | Exact Match: {exact_match:.4f} | F1: {f1:.4f}')
+        print(f'Epoch {epoch+1}/{num_epochs} | Loss: {avg_loss:.4f} | Accuracy: {accuracy:.4f} | Exact Match: {exact_match:.4f} | F1: {f1:.4f}',flush=True)
         
         losses.append(avg_loss)
         accs.append(accuracy)
