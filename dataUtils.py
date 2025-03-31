@@ -47,27 +47,41 @@ def load_images_from_gcs(bucket_name, directory='datasets/nih-chest-xrays/images
     
     return images
 
+def get_last_image_index():
+    directories = [
+            '../datasets/nih-chest-xrays/images_001/images/',
+            '../datasets/nih-chest-xrays/images_002/images/',
+            '../datasets/nih-chest-xrays/images_003/images/',
+            '../datasets/nih-chest-xrays/images_004/images/',
+            '../datasets/nih-chest-xrays/images_005/images/',
+            '../datasets/nih-chest-xrays/images_006/images/',
+            '../datasets/nih-chest-xrays/images_007/images/',
+            '../datasets/nih-chest-xrays/images_008/images/',
+            '../datasets/nih-chest-xrays/images_009/images/',
+            '../datasets/nih-chest-xrays/images_010/images/',
+            '../datasets/nih-chest-xrays/images_011/images/',
+            '../datasets/nih-chest-xrays/images_012/images/'
+            ]
+    last_index = [None for i in range(11):
+    for directory in directories:
+        files = os.listdir(directory)
+        files.sort()
+        last_index.append(files[-1])
+    return last_index
+
+
 
 
 class ImageLabelDataset(Dataset):
-    def __init__(self, bucket_name, csv_file='datasets/nih-chest-xrays/Data_Entry_2017_cleaned.csv', directories=None, transform=None):
+    def __init__(self, csv_file='../../datasets/nih-chest-xrays/Data_Entry_2017_cleaned.csv', directories=None, transform=None):
         """
         Args:
-            csv_file (string): Path to the CSV file with image indices and labels (can be on GCS).
-            bucket_name (string): The name of the Google Cloud Storage bucket containing the images.
-            directories (list of strings): List of directories containing the images (e.g., ['images_001', 'images_002', ..., 'images_012']).
+            csv_file (string): Local path to the CSV file with image indices and labels.
+            directories (list of strings): List of local directories containing the images.
+                Example: ['../../datasets/nih-chest-xrays/images_001/images/']
             transform (callable, optional): Optional transform to be applied on a sample.
         """
-        # Initialize the GCS client and get the bucket
-        self.client = storage.Client(project='MedImgNet')
-        self.bucket = self.client.get_bucket(bucket_name)
-        
-        # Download the CSV file from GCS as bytes
-        blob = self.bucket.blob(csv_file)  # GCS path to the CSV file
-        csv_data = blob.download_as_bytes()  # Download CSV file as bytes
-        self.data = pd.read_csv(io.BytesIO(csv_data))  # Read CSV file into a pandas DataFrame
-        
-        # Define the label encoding map
+        self.data = pd.read_csv(csv_file)
         self.label_map = {
             'Atelectasis': 0,
             'Cardiomegaly': 1,
@@ -83,25 +97,37 @@ class ImageLabelDataset(Dataset):
             'Fibrosis': 11,
             'Pleural_Thickening': 12,
             'Hernia': 13
+            "No Finding": 14
         }
         
-        # Initialize parameters
-        self.bucket_name = bucket_name
-        self.directories = directories if directories else ['datasets/nih-chest-xrays/images_001/images/']  # Default to images_001 if not specified
+        self.directories = [
+            '../datasets/nih-chest-xrays/images_001/images/',
+            '../datasets/nih-chest-xrays/images_002/images/',
+            '../datasets/nih-chest-xrays/images_003/images/',
+            '../datasets/nih-chest-xrays/images_004/images/',
+            '../datasets/nih-chest-xrays/images_005/images/',
+            '../datasets/nih-chest-xrays/images_006/images/',
+            '../datasets/nih-chest-xrays/images_007/images/',
+            '../datasets/nih-chest-xrays/images_008/images/',
+            '../datasets/nih-chest-xrays/images_009/images/',
+            '../datasets/nih-chest-xrays/images_010/images/',
+            '../datasets/nih-chest-xrays/images_011/images/',
+            '../datasets/nih-chest-xrays/images_012/images/'
+        ]
         self.transform = transform
+        
 
     def __len__(self):
-        """Returns the number of samples in the dataset."""
         return len(self.data)
+    
 
     def __getitem__(self, idx):
-        """Returns the image and its corresponding multi-hot encoded label."""
-        # Get the image index and label from the DataFrame
+        # Get the image index (filename) and the label string from the DataFrame
         image_index = self.data.iloc[idx]['Image Index']
         label_str = self.data.iloc[idx]['Finding Labels']
         
-        # Encode the label (handle multiple labels)
-        labels = label_str.split('|')  # Some samples might have multiple labels
+        # Process the label string (could be multiple labels separated by '|')
+        labels = label_str.split('|')
         encoded_labels = [self.label_map[label.strip()] for label in labels if label.strip() in self.label_map]
         
         # Create a multi-hot encoded label vector (14 classes in total)
@@ -109,50 +135,39 @@ class ImageLabelDataset(Dataset):
         for label in encoded_labels:
             multi_hot_label[label] = 1
         
-        # Try to construct the image file path in each directory
+        # Attempt to find the image file in one of the directories
         image_path = None
         for directory in self.directories:
-            image_path = f"{directory}{image_index}"
-            blob = self.bucket.blob(image_path)
-            if blob.exists(): 
+            candidate = os.path.join(directory, image_index)
+            if os.path.exists(candidate):
+                image_path = candidate
                 break
+            
+        
         if image_path is None:
-            raise FileNotFoundError(f"Image {image_index}.png not found in any of the specified directories.")
+            raise FileNotFoundError(f"Image {image_index} not found in any of the specified directories: {self.directories}")
         
-        # Download the image from GCS as bytes
-        image_data = blob.download_as_bytes()
+        # Open the image file and convert to grayscale ('L' mode)
+        image = Image.open(image_path).convert('L')
         
-        # Open the image 
-        image = Image.open(io.BytesIO(image_data))
-
         if self.transform:
             image = self.transform(image)
         
         return image, multi_hot_label
 
+
 if __name__ == "__main__":
-    bucket_name = 'med-img-net'
-    directories = [
-    'datasets/nih-chest-xrays/images_001/images/',
-    'datasets/nih-chest-xrays/images_002/images/',
-    'datasets/nih-chest-xrays/images_003/images/',
-    'datasets/nih-chest-xrays/images_004/images/',
-    'datasets/nih-chest-xrays/images_005/images/',
-    'datasets/nih-chest-xrays/images_006/images/',
-    'datasets/nih-chest-xrays/images_007/images/',
-    'datasets/nih-chest-xrays/images_008/images/',
-    'datasets/nih-chest-xrays/images_009/images/',
-    'datasets/nih-chest-xrays/images_010/images/',
-    'datasets/nih-chest-xrays/images_011/images/',
-    'datasets/nih-chest-xrays/images_012/images/'
-]
     
+    
+    last_index = get_last_image_index()
+    for i in last_index:
+        print(i)
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor()
     ])
 
-    dataset = ImageLabelDataset(bucket_name, directories=directories, transform=transform)
+    dataset = ImageLabelDataset( transform=transform)
     dataloader = DataLoader(dataset, batch_size=32, num_workers=4,shuffle=True)
     for i in tqdm(range(10), desc="Epochs", position=0):
         for images, labels in tqdm(dataloader, desc="Batches", position=1, leave=False):
