@@ -96,7 +96,7 @@ class ImageLabelDataset(Dataset):
             'Emphysema': 10,
             'Fibrosis': 11,
             'Pleural_Thickening': 12,
-            'Hernia': 13
+            'Hernia': 13,
             "No Finding": 14
         }
         
