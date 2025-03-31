@@ -220,7 +220,7 @@ if __name__ == "__main__":
     ])
 
     dataset = ImageLabelDataset( transform=transform)
-    dataloader = DataLoader(dataset, batch_size=32, num_workers=4,shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=32, num_workers=8,shuffle=True)
     for i in tqdm(range(10), desc="Epochs", position=0):
         for images, labels in tqdm(dataloader, desc="Batches", position=1, leave=False):
             continue
