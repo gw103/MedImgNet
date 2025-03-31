@@ -73,7 +73,7 @@ def get_last_image_index():
 
 
 class ImageLabelDataset(Dataset):
-    def __init__(self, csv_file='../../datasets/nih-chest-xrays/Data_Entry_2017_cleaned.csv', directories=None, transform=None):
+    def __init__(self, csv_file='../datasets/nih-chest-xrays/Data_Entry_2017_cleaned.csv', directories=None, transform=None):
         """
         Args:
             csv_file (string): Local path to the CSV file with image indices and labels.
