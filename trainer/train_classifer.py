@@ -19,17 +19,20 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     print(f'Using device: {device}')
 
     dataset = ImageLabelDataset(transform=transform)
-    
+    print("Dataset length: ", len(dataset))
     train_size = int(len(dataset) * train_split)
     test_size = len(dataset) - train_size
 
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+    print("Train dataset length: ", len(train_dataset))
+    print("Test dataset length: ", len(test_dataset))
+    print("*"*10+"Loading data"+"*"*10)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
-
+    print("*"*10+"Data loaded"+"*"*10)
     model = Classifier().to(device)
-    
+    print("*"*10+"Freezing layers"+"*"*10)
     for name, param in model.model.named_parameters():
         if 'conv1' in name or 'fc' in name:
             param.requires_grad = True
@@ -46,6 +49,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     f1s = []
 
     for epoch in tqdm(range(num_epochs)):
+        print(epoch)
         # Training Phase
         model.train()
         running_loss = 0.0
@@ -56,6 +60,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
             optimizer.zero_grad()
             outputs = model(images)
             loss = criterion(outputs, labels)
+            print(loss)
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
