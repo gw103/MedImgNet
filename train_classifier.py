@@ -28,7 +28,6 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
 
     model = Classifier().to(device)
     
-    # Freeze everything first
     for name, param in model.model.named_parameters():
         if 'conv1' in name or 'fc' in name:
             param.requires_grad = True
