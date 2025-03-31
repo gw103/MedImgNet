@@ -62,7 +62,7 @@ def get_last_image_index():
             '../datasets/nih-chest-xrays/images_011/images/',
             '../datasets/nih-chest-xrays/images_012/images/'
             ]
-    last_index = [None for i in range(11):
+    last_index = []
     for directory in directories:
         files = os.listdir(directory)
         files.sort()
