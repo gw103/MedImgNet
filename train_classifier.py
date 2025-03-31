@@ -64,7 +64,11 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     test_size = len(dataset) - train_size
 
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
-    val_dataset, test_dataset = random_split(test_dataset, [int(test_size/2), int(test_size/2)])
+    test_len = len(test_dataset)
+    val_len = test_len // 2
+    test_len = test_len - val_len  
+
+    val_dataset, test_dataset = random_split(test_dataset, [val_len, test_len])
 
     print("Train dataset length: ", len(train_dataset),flush=True)
     print("Test dataset length: ", len(test_dataset),flush=True)
