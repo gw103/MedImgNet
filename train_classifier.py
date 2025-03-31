@@ -14,6 +14,8 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
         transforms.Resize((224, 224)),
         transforms.ToTensor()
     ])
+    torch.cuda.empty_cache()
+
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}',flush=True)
@@ -116,7 +118,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
 
 
 if __name__ == "__main__":
-    losses,accs=train_classifier(batch_size=16, num_workers=4, num_epochs=10, learning_rate=0.001, model_dir='model.pth')
+    losses, accs, exact_matches, f1s=train_classifier(batch_size=16, num_workers=4, num_epochs=10, learning_rate=0.001, model_dir='model.pth')
     x = [i for i in range(10)]
     plt.plot(x, losses)
     plt.xlabel('Epoch')
@@ -129,4 +131,16 @@ if __name__ == "__main__":
     plt.ylabel('Accuracy')
     plt.title('Test Accuracy')
     plt.savefig('accuracy.png')
+    plt.show()
+    plt.plot(x, exact_matches)
+    plt.xlabel('Epoch')
+    plt.ylabel('Exact Match')
+    plt.title('Exact Match')
+    plt.savefig('exact_match.png')
+    plt.show()
+    plt.plot(x, f1s)
+    plt.xlabel('Epoch')
+    plt.ylabel('F1')
+    plt.title('F1')
+    plt.savefig('f1.png')
     plt.show()
