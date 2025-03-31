@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import transforms
 import matplotlib.pyplot as plt
-import tqdm
+from tqdm import tqdm
 from sklearn.metrics import f1_score, precision_score, recall_score
 
 def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_dir, train_split=0.8):
