@@ -1,5 +1,5 @@
-from modelUtils import Classifier
-from dataUtils import ImageLabelDataset
+from ../modelUtils import Classifier
+from ../dataUtils import ImageLabelDataset
 from torch.utils.data import DataLoader, random_split
 import torch
 import torch.nn as nn
