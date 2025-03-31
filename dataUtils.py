@@ -115,6 +115,7 @@ class ImageLabelDataset(Dataset):
             '../datasets/nih-chest-xrays/images_012/images/'
         ]
         self.transform = transform
+        self.last_index = get_last_image_index()
         
 
     def __len__(self):
@@ -137,15 +138,35 @@ class ImageLabelDataset(Dataset):
         
         # Attempt to find the image file in one of the directories
         image_path = None
-        for directory in self.directories:
-            candidate = os.path.join(directory, image_index)
-            if os.path.exists(candidate):
-                image_path = candidate
-                break
+        if self.idx1_smallereqto_idx2(image_index,self.last_index[0]):
+            image_path = f'{self.directories[0]}{image_index}'
+        elif self.idx1_greaterthan_idx2(image_index,self.last_index[0]) and self.idx1_smallereqto_idx2(image_index,self.last_index[1]):
+            image_path = f'{self.directories[1]}{image_index}'
+        elif self.idx1_greaterthan_idx2(image_index,self.last_index[1]) and self.idx1_smallereqto_idx2(image_index,self.last_index[2]):
+            image_path = f'{self.directories[2]}{image_index}'
+        elif self.idx1_greaterthan_idx2(image_index,self.last_index[2]) and self.idx1_smallereqto_idx2(image_index,self.last_index[3]):
+            image_path = f'{self.directories[3]}{image_index}'
+        elif self.idx1_greaterthan_idx2(image_index,self.last_index[3]) and self.idx1_smallereqto_idx2(image_index,self.last_index[4]):
+            image_path = f'{self.directories[4]}{image_index}'
+        elif self.idx1_greaterthan_idx2(image_index,self.last_index[4]) and self.idx1_smallereqto_idx2(image_index,self.last_index[5]):
+            image_path = f'{self.directories[5]}{image_index}'
+        elif self.idx1_greaterthan_idx2(image_index,self.last_index[5]) and self.idx1_smallereqto_idx2(image_index,self.last_index[6]):
+            image_path = f'{self.directories[6]}{image_index}'
+        elif self.idx1_greaterthan_idx2(image_index,self.last_index[6]) and self.idx1_smallereqto_idx2(image_index,self.last_index[7]):
+            image_path = f'{self.directories[7]}{image_index}'
+        elif self.idx1_greaterthan_idx2(image_index,self.last_index[7]) and self.idx1_smallereqto_idx2(image_index,self.last_index[8]):
+            image_path = f'{self.directories[8]}{image_index}'
+        elif self.idx1_greaterthan_idx2(image_index,self.last_index[8]) and self.idx1_smallereqto_idx2(image_index,self.last_index[9]):
+            image_path = f'{self.directories[9]}{image_index}'
+        elif self.idx1_greaterthan_idx2(image_index,self.last_index[9]) and self.idx1_smallereqto_idx2(image_index,self.last_index[10]):
+            image_path = f'{self.directories[10]}{image_index}'
+        elif self.idx1_greaterthan_idx2(image_index,self.last_index[10]) and self.idx1_smallereqto_idx2(image_index,self.last_index[11]):
+            image_path = f'{self.directories[11]}{image_index}'
+        else:
+            raise FileNotFoundError(f"Image {image_index} not found in any of the specified directories: {self.directories}")
             
         
-        if image_path is None:
-            raise FileNotFoundError(f"Image {image_index} not found in any of the specified directories: {self.directories}")
+        
         
         # Open the image file and convert to grayscale ('L' mode)
         image = Image.open(image_path).convert('L')
@@ -154,6 +175,37 @@ class ImageLabelDataset(Dataset):
             image = self.transform(image)
         
         return image, multi_hot_label
+    def idx1_greaterthan_idx2(self, idx1,idx2):
+        patient_id1 = int(idx1.split('_')[0])
+        patient_id2 = int(idx2.split('_')[0])
+
+        if patient_id1 > patient_id2:
+            return True
+        elif patient_id1 == patient_id2:
+            img_id1 = int(idx1.split('_')[1].split('.')[0])
+            img_id2 = int(idx2.split('_')[1].split('.')[0])
+            if img_id1 > img_id2:
+                return True
+            else:
+                return False
+        else:
+            return False
+    def idx1_smallereqto_idx2(self, idx1,idx2):
+        patient_id1 = int(idx1.split('_')[0])
+        patient_id2 = int(idx2.split('_')[0])
+        if patient_id1 <= patient_id2:
+            if patient_id1 == patient_id2:
+                img_id1 = int(idx1.split('_')[1].split('.')[0])
+                img_id2 = int(idx2.split('_')[1].split('.')[0])
+                if img_id1 <= img_id2:
+                    return True
+                else:
+                    return False
+            else:
+                return True
+        else:
+            return False
+        
 
 
 if __name__ == "__main__":
