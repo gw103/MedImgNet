@@ -112,7 +112,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
 
 
 if __name__ == "__main__":
-    losses,accs=train_classifier(batch_size=32, num_workers=4, num_epochs=10, learning_rate=0.001, model_dir='model.pth')
+    losses,accs=train_classifier(batch_size=1, num_workers=4, num_epochs=10, learning_rate=0.001, model_dir='model.pth')
     x = [i for i in range(10)]
     plt.plot(x, losses)
     plt.xlabel('Epoch')
