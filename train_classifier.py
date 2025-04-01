@@ -82,7 +82,7 @@ def validate_model(model, val_loader, device, criterion):
 
 
 
-def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_dir, train_split=0.6,patience = 5):
+def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_dir, train_split=0.6,patience = 20):
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor()
@@ -123,7 +123,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
  
 
     criterion = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-5)
  
     train_losses = []
     train_accs_list_list = []#Store the accuracy per class for each epoch
@@ -245,7 +245,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
         #test f1 per class
         all_preds_tensor = all_preds_tensor.numpy()
         all_labels_tensor = all_labels_tensor.numpy()
-        f1_per_class_test = f1_score(all_labels_tensor, all_preds_tensor, average='macro', zero_division=0)
+        f1_per_class_test = f1_score(all_labels_tensor, all_preds_tensor, average=None, zero_division=0)
         print(f"Test F1 per class: {f1_per_class_test}", flush=True)
         test_f1s_list_list.append(f1_per_class_test)
         # Compute overall F1 score (micro-average aggregates counts over all classes)
