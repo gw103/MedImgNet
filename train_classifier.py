@@ -167,16 +167,13 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
             # list of predicted tensors, each tensor has shape (batch_size, num_classes)
             all_preds_train.append(predicted.detach().cpu())
             all_labels_train.append(labels.detach().cpu())
-            # Compute overall training accuracy (individual label level)
-            overall_accuracy_train = (all_preds_tensor == all_labels_tensor).sum().item() / all_labels_tensor.numel()
-            train_overall_acc_list.append(overall_accuracy_train)
-            print(f"Overall Training Accuracy: {overall_accuracy_train}", flush=True)
+
             #exact matches
             matches += (predicted == labels).all(dim=1).sum().item()
 
             loss.backward()
             optimizer.step()
-            
+       
         #train losses
         train_avg_loss = running_loss / len(train_loader)
         train_losses.append(train_avg_loss)
@@ -185,9 +182,14 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
         train_acc_list = train_correct_list / len(train_loader.dataset)
         train_accs_list_list.append(train_acc_list)
         print(f"Training accuracy per class: {train_acc_list}",flush=True)
+        #overall train accuracy
+        all_preds_train = torch.cat(all_preds_train, dim=0)
+        all_labels_train = torch.cat(all_labels_train, dim=0)
+        overall_accuracy_train = (all_preds_train == all_labels_train).sum().item() / all_labels_train.numel()
+        train_overall_acc_list.append(overall_accuracy_train)
         #Train f1 per class
-        all_preds_train = torch.cat(all_preds_train, dim=0).numpy() # shape (num_samples, num_classes)
-        all_labels_train = torch.cat(all_labels_train, dim=0).numpy()
+        all_preds_train =  all_preds_train.numpy()
+        all_labels_train = all_labels_train.numpy()
         f1_per_class_train = f1_score(all_labels_train, all_preds_train, average=None, zero_division=0) # f1 score for each classes, shape (num_classes,)
         print(f"Training F1 per class: {f1_per_class_train}", flush=True)
         train_f1s_list_list.append(f1_per_class_train)
