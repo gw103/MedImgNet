@@ -336,7 +336,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
 
 
 if __name__ == "__main__":
-    train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, test_losses, test_overall_acc_list, test_exact_matches, test_f1_overall_list=train_classifier(batch_size=16, num_workers=4, num_epochs=10, learning_rate=0.001, model_dir='model.pth')
+    train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, test_losses, test_overall_acc_list, test_exact_matches, test_f1_overall_list=train_classifier(batch_size=16, num_workers=4, num_epochs=50, learning_rate=0.001, model_dir='model.pth')
     # Define epochs (assuming one metric per epoch)
     epochs = range(1, len(train_losses) + 1)
     results_folder = "results"
