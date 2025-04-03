@@ -4,7 +4,7 @@ from PIL import Image
 import numpy as np
 from tqdm import tqdm  # Import tqdm for progress bar
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader,random_split
 import pandas as pd
 import os
 from torchvision import transforms
@@ -46,6 +46,60 @@ def load_images_from_gcs(bucket_name, directory='datasets/nih-chest-xrays/images
     print(f"Total images loaded: {len(images)}")
     
     return images
+def get_train_val_test_split(train_split=0.8, val_split=0.1, test_split=0.1):
+        dataset = ImageLabelDataset(transform=transform)
+        print("Dataset length: ", len(dataset),flush=True)
+        train_size = int(len(dataset) * train_split)
+
+        train_dataset, test_val_dataset = random_split(dataset, [train_size,1-train_size])
+
+        val_dataset, test_dataset = random_split(test_val_dataset, [val_split/(val_split+test_split), test_split/(val_split+test_split)])
+
+        print("Train dataset length: ", len(train_dataset),flush=True)
+        print("Test dataset length: ", len(val_dataset),flush=True)
+        print("Val dataset length: ", len(test_dataset),flush=True)
+        print("*"*10+"Loading data"+"*"*10,flush=True)
+        return train_dataset, val_dataset, test_dataset
+def compute_pos_weight_tensor(device):
+    counts = {
+        "Atelectasis": 15430,
+        "Cardiomegaly": 3609,
+        "Effusion": 18029,
+        "Infiltration": 27765,
+        "Mass": 7696,
+        "Nodule": 8715,
+        "Pneumonia": 1860,
+        "Pneumothorax": 7370,
+        "Consolidation": 6078,
+        "Edema": 2998,
+        "Emphysema": 3308,
+        "Fibrosis": 2029,
+        "Pleural_Thickening": 4630,
+        "Hernia": 292,
+        "No Finding": 79030
+    }
+    
+    total_samples = 111601
+
+
+    pos_weights = {label: (total_samples - count) / count for label, count in counts.items()}
+    
+
+    for label, weight in pos_weights.items():
+        print(f"{label}: {weight:.2f}")
+
+    label_map = [
+        "Atelectasis", "Cardiomegaly", "Effusion", "Infiltration", "Mass",
+        "Nodule", "Pneumonia", "Pneumothorax", "Consolidation", "Edema",
+        "Emphysema", "Fibrosis", "Pleural_Thickening", "Hernia", "No Finding"
+    ]
+
+    pos_weight_tensor = torch.tensor(
+        [pos_weights[label] for label in label_map],
+        dtype=torch.float
+    ).to(device)
+    
+    return pos_weight_tensor
 
 def get_last_image_index():
     directories = [

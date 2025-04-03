@@ -1,5 +1,5 @@
 from modelUtils import Classifier
-from dataUtils import ImageLabelDataset
+from dataUtils import *
 from torch.utils.data import DataLoader, random_split
 import torch
 import torch.nn as nn
@@ -91,71 +91,21 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}',flush=True)
 
-    dataset = ImageLabelDataset(transform=transform)
-    print("Dataset length: ", len(dataset),flush=True)
-    train_size = int(len(dataset) * train_split)
-    test_size = len(dataset) - train_size
-
-    train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
-    test_len = len(test_dataset)
-    val_len = test_len // 2
-    test_len = test_len - val_len  
-
-    val_dataset, test_dataset = random_split(test_dataset, [val_len, test_len])
-
-    print("Train dataset length: ", len(train_dataset),flush=True)
-    print("Test dataset length: ", len(test_dataset),flush=True)
-    print("Val dataset length: ", len(val_dataset),flush=True)
-    print("*"*10+"Loading data"+"*"*10,flush=True)
+    train_dataset, val_dataset, test_dataset = get_train_val_test_split(train_split=0.6)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
-
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
     print("*"*10+"Data loaded"+"*"*10,flush=True)
     model = Classifier().to(device)
     if finetune:
         print("*"*10+"Freezing layers"+"*"*10,flush=True)
-    if finetune:
         for name, param in model.model.named_parameters():
             if 'conv1' in name or 'fc' in name:
                 param.requires_grad = True
             else:
                 param.requires_grad = False
-    counts = {
-    "Atelectasis": 15430,
-    "Cardiomegaly": 3609,
-    "Effusion": 18029,
-    "Infiltration": 27765,
-    "Mass": 7696,
-    "Nodule": 8715,
-    "Pneumonia": 1860,
-    "Pneumothorax": 7370,
-    "Consolidation": 6078,
-    "Edema": 2998,
-    "Emphysema": 3308,
-    "Fibrosis": 2029,
-    "Pleural_Thickening": 4630,
-    "Hernia": 292,
-    "No Finding": 79030
-    }
-
-    total_samples = 111601
-
-    # Calculate pos_weight
-    pos_weights = {label: (total_samples - count) / count for label, count in counts.items()}
-
-    for label, weight in pos_weights.items():
-        print(f"{label}: {weight:.2f}")
-
-    label_map = [
-        "Atelectasis", "Cardiomegaly", "Effusion", "Infiltration", "Mass",
-        "Nodule", "Pneumonia", "Pneumothorax", "Consolidation", "Edema",
-        "Emphysema", "Fibrosis", "Pleural_Thickening", "Hernia", "No Finding"
-    ]
-
-    pos_weight_tensor = torch.tensor([pos_weights[label] for label in label_map], dtype=torch.float).to(device)
-    
+    pos_weight_tensor = compute_pos_weight_tensor(device)
     criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight_tensor)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-5)
  
@@ -167,131 +117,129 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     train_overall_acc_list = []#Store the overall accuracy for each epoch
 
 
-    test_losses = []
-    test_accs_list_list = []
-    test_f1s_list_list = []
-    test_f1_overall_list = []
-    test_exact_matches = []
+    val_losses = []
+    val_accs_list_list = []
+    val_f1s_list_list = []
+    val_f1_overall_list = []
+    val_exact_matches = []
     best_model_state = None
-    test_overall_acc_list = []
+    val_overall_acc_list = []
     best_f1 = 0
 
-
     for epoch in tqdm(range(num_epochs)):
-        print(epoch,flush=True)
+        print(epoch, flush=True)
         # Training Phase
         model.train()
-        running_loss = 0.0 #used for calculating average loss per epoch
-        train_correct_list = [] #used for calculating accuracy per class
-        all_preds_train = [] #used for calculating f1 per class
-        all_labels_train = [] #used for calculating f1 per class
-        matches = 0 #used for calculating exact matches
+        running_loss = 0.0  # used for calculating average loss per epoch
+        train_correct_list = []  # used for calculating accuracy per class
+        all_preds_train = []  # used for calculating f1 per class
+        all_labels_train = []  # used for calculating f1 per class
+        matches = 0  # used for calculating exact matches
         for images, labels in train_loader:
             images = images.to(device)
             labels = labels.to(device).float()
             optimizer.zero_grad()
-            outputs = model(images) # output shape (batch_size, num_classes)
+            outputs = model(images)  # output shape (batch_size, num_classes)
             predicted = (torch.sigmoid(outputs) > 0.5).float()
-            #loss
+            # loss
             loss = criterion(outputs, labels)
             running_loss += loss.item()
-            #correct per class, used for calculating accuracy per class
-            correct_per_class = (predicted == labels).sum(dim=0) 
+            # correct per class, used for calculating accuracy per class
+            correct_per_class = (predicted == labels).sum(dim=0)
             train_correct_list.append(correct_per_class)
             # list of predicted tensors, each tensor has shape (batch_size, num_classes)
             all_preds_train.append(predicted.detach().cpu())
             all_labels_train.append(labels.detach().cpu())
 
-            #exact matches
+            # exact matches
             matches += (predicted == labels).all(dim=1).sum().item()
 
             loss.backward()
             optimizer.step()
-       
-        #train losses
+    
+        # train losses
         train_avg_loss = running_loss / len(train_loader)
         train_losses.append(train_avg_loss)
-        #train accuracy per class
+        # train accuracy per class
         train_correct_list = torch.stack(train_correct_list).sum(dim=0)
         train_acc_list = train_correct_list / len(train_loader.dataset)
         train_accs_list_list.append(train_acc_list)
-        print(f"Training accuracy per class: {train_acc_list}",flush=True)
-        #overall train accuracy
+        print(f"Training accuracy per class: {train_acc_list}", flush=True)
+        # overall train accuracy
         all_preds_train = torch.cat(all_preds_train, dim=0)
         all_labels_train = torch.cat(all_labels_train, dim=0)
         overall_accuracy_train = (all_preds_train == all_labels_train).sum().item() / all_labels_train.numel()
         train_overall_acc_list.append(overall_accuracy_train)
-        #Train f1 per class
-        all_preds_train =  all_preds_train.numpy()
+        # Train f1 per class
+        all_preds_train = all_preds_train.numpy()
         all_labels_train = all_labels_train.numpy()
-        f1_per_class_train = f1_score(all_labels_train, all_preds_train, average=None, zero_division=0) # f1 score for each classes, shape (num_classes,)
+        f1_per_class_train = f1_score(all_labels_train, all_preds_train, average=None, zero_division=0)  # f1 score for each class
         print(f"Training F1 per class: {f1_per_class_train}", flush=True)
         train_f1s_list_list.append(f1_per_class_train)
         # Compute overall F1 score (micro-average aggregates counts over all classes)
         overall_f1_train = f1_score(all_labels_train, all_preds_train, average='micro', zero_division=0)
         train_f1_overall_list.append(overall_f1_train)
-        #train exact matches
+        # train exact matches
         train_exact_matches.append(matches / len(train_loader.dataset))
 
 
         # Evaluation Phase
-        # running_loss = 0.0 #used for calculating average loss per epoch
-        # train_correct_list = [] #used for calculating accuracy per class
-        # all_preds_train = [] #used for calculating f1 per class
-        # all_labels_train = [] #used for calculating f1 per class
-        # matches = 0 #used for calculating exact matches
         model.eval()
-        running_loss_test = 0.0
-        test_correct_list = []
-        all_preds_test = []
-        all_labels_test = []
-        matches_test = 0
+        running_loss_val = 0.0
+        val_correct_list = []
+        all_preds_val = []
+        all_labels_val = []
+        matches_val = 0
         with torch.no_grad():
-            for images, labels in test_loader:
+            for images, labels in val_loader:
                 images = images.to(device)
                 labels = labels.to(device).float()
                 outputs = model(images)
-                #loss
+                # loss
                 loss = criterion(outputs, labels)
-                running_loss_test += loss.item()
-                #correct per class, used for calculating accuracy per class
+                running_loss_val += loss.item()
+                # correct per class, used for calculating accuracy per class
                 predicted = (torch.sigmoid(outputs) > 0.5).float()
                 correct_per_class = (predicted == labels).sum(dim=0)
-                test_correct_list.append(correct_per_class)
+                val_correct_list.append(correct_per_class)
                 # list of predicted tensors, each tensor has shape (batch_size, num_classes)
-                all_preds_test.append(predicted.cpu())
-                all_labels_test.append(labels.cpu())
-                #exact matches
-                matches_test += (predicted == labels).all(dim=1).sum().item()
-        #test losses
-        test_avg_loss = running_loss_test / len(test_loader)
-        test_losses.append(test_avg_loss)
-        #test accuracy per class
-        test_correct_list = torch.stack(test_correct_list).sum(dim=0)
-        test_acc_list = test_correct_list / len(test_loader.dataset)
-        print(f"Test accuracy per class: {test_acc_list}",flush=True)
-        test_accs_list_list.append(test_acc_list)
-        #overall test accuracy
-        all_preds_tensor = torch.cat(all_preds_test, dim=0)
-        all_labels_tensor = torch.cat(all_labels_test, dim=0)
-        overall_accuracy_test = (all_preds_tensor == all_labels_tensor).sum().item() / all_labels_tensor.numel()
-        test_overall_acc_list.append(overall_accuracy_test)
-        #test f1 per class
+                all_preds_val.append(predicted.cpu())
+                all_labels_val.append(labels.cpu())
+                # exact matches
+                matches_val += (predicted == labels).all(dim=1).sum().item()
+        # val losses
+        val_avg_loss = running_loss_val / len(val_loader)
+        val_losses.append(val_avg_loss)
+        # val accuracy per class
+        val_correct_list = torch.stack(val_correct_list).sum(dim=0)
+        val_acc_list = val_correct_list / len(val_loader.dataset)
+        print(f"Val accuracy per class: {val_acc_list}", flush=True)
+        val_accs_list_list.append(val_acc_list)
+        # overall val accuracy
+        all_preds_tensor = torch.cat(all_preds_val, dim=0)
+        all_labels_tensor = torch.cat(all_labels_val, dim=0)
+        overall_accuracy_val = (all_preds_tensor == all_labels_tensor).sum().item() / all_labels_tensor.numel()
+        val_overall_acc_list.append(overall_accuracy_val)
+        # val f1 per class
         all_preds_tensor = all_preds_tensor.numpy()
         all_labels_tensor = all_labels_tensor.numpy()
-        f1_per_class_test = f1_score(all_labels_tensor, all_preds_tensor, average=None, zero_division=0)
-        print(f"Test F1 per class: {f1_per_class_test}", flush=True)
-        test_f1s_list_list.append(f1_per_class_test)
+        f1_per_class_val = f1_score(all_labels_tensor, all_preds_tensor, average=None, zero_division=0)
+        print(f"Val F1 per class: {f1_per_class_val}", flush=True)
+        val_f1s_list_list.append(f1_per_class_val)
         # Compute overall F1 score (micro-average aggregates counts over all classes)
-        overall_f1_test = f1_score(all_labels_tensor, all_preds_tensor, average='micro', zero_division=0)
-        test_f1_overall_list.append(overall_f1_test)
-        #test exact matches
-        test_exact_match = matches_test/ len(all_preds_tensor)
-        test_exact_matches.append(test_exact_match)
-        print(f"epoch: {epoch}, train_loss: {train_avg_loss}, test_loss: {test_avg_loss}, train_accuracy: {overall_accuracy_train}, test_accuracy: {overall_accuracy_test}, train_f1: {overall_f1_train}, test_f1: {overall_f1_test}, train_exact_match: {matches / len(train_loader.dataset)}, test_exact_match: {test_exact_match}",flush=True)
+        overall_f1_val = f1_score(all_labels_tensor, all_preds_tensor, average='micro', zero_division=0)
+        val_f1_overall_list.append(overall_f1_val)
+        # val exact matches
+        val_exact_match = matches_val / len(all_preds_tensor)
+        val_exact_matches.append(val_exact_match)
+        print(f"epoch: {epoch}, train_loss: {train_avg_loss}, val_loss: {val_avg_loss}, "
+            f"train_accuracy: {overall_accuracy_train}, val_accuracy: {overall_accuracy_val}, "
+            f"train_f1: {overall_f1_train}, val_f1: {overall_f1_val}, "
+            f"train_exact_match: {matches / len(train_loader.dataset)}, val_exact_match: {val_exact_match}",
+            flush=True)
 
-        if overall_f1_test > best_f1:
-            best_f1 = overall_f1_test
+        if overall_f1_val > best_f1:
+            best_f1 = overall_f1_val
             best_model_state = model.state_dict()
             counter = 0  # reset patience
         else:
@@ -300,6 +248,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
                 print(f"Early stopping triggered at epoch {epoch}")
                 model.load_state_dict(best_model_state)
                 break
+
     output_folder = "results"
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -321,56 +270,58 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     with open(os.path.join(output_folder, 'train_overall_acc.txt'), 'w') as f:
         for acc in train_overall_acc_list:
             f.write(f"{acc}\n")
-    with open(os.path.join(output_folder, 'test_losses.txt'), 'w') as f:
-        for loss in test_losses:
+    with open(os.path.join(output_folder, 'val_losses.txt'), 'w') as f:
+        for loss in val_losses:
             f.write(f"{loss}\n")
-    with open(os.path.join(output_folder, 'test_accs.txt'), 'w') as f:
-        for acc in test_accs_list_list:
+    with open(os.path.join(output_folder, 'val_accs.txt'), 'w') as f:
+        for acc in val_accs_list_list:
             f.write(f"{acc}\n")
-    with open(os.path.join(output_folder, 'test_f1s.txt'), 'w') as f:
-        for f1 in test_f1s_list_list:
+    with open(os.path.join(output_folder, 'val_f1s.txt'), 'w') as f:
+        for f1 in val_f1s_list_list:
             f.write(f"{f1}\n")
-    with open(os.path.join(output_folder, 'test_f1_overall.txt'), 'w') as f:
-        for f1 in test_f1_overall_list:
+    with open(os.path.join(output_folder, 'val_f1_overall.txt'), 'w') as f:
+        for f1 in val_f1_overall_list:
             f.write(f"{f1}\n")
-    with open(os.path.join(output_folder, 'test_exact_matches.txt'), 'w') as f:
-        for match in test_exact_matches:
+    with open(os.path.join(output_folder, 'val_exact_matches.txt'), 'w') as f:
+        for match in val_exact_matches:
             f.write(f"{match}\n")
-    with open(os.path.join(output_folder, 'test_overall_acc.txt'), 'w') as f:
-        for acc in test_overall_acc_list:
+    with open(os.path.join(output_folder, 'val_overall_acc.txt'), 'w') as f:
+        for acc in val_overall_acc_list:
             f.write(f"{acc}\n")
     with open(os.path.join(output_folder, model_dir), 'wb') as f:
         torch.save(model.state_dict(), f)
     print(f'Model saved to {model_dir}')
 
-    # Validation Phase
-    avg_loss_val, overall_accuracy_val, per_class_accuracy_val, exact_match_val, f1_macro_val, f1_micro_val, f1_per_class_val = validate_model(model, val_loader, device, criterion)
-    print(f"Validation Loss: {avg_loss_val}, Validation Accuracy: {overall_accuracy_val}, Validation Exact Match: {exact_match_val}, Validation F1 Macro: {f1_macro_val}, Validation F1 Micro: {f1_micro_val}, Validation F1 per Class: {f1_per_class_val},per class accuracy: {per_class_accuracy_val}")
-    with open(os.path.join(output_folder, 'validation_results.txt'), 'w') as f:
-        f.write(f"Validation Loss: {avg_loss_val}, Validation Accuracy: {overall_accuracy_val}, Validation Exact Match: {exact_match_val}, Validation F1 Macro: {f1_macro_val}, Validation F1 Micro: {f1_micro_val}, Validation F1 per Class: {f1_per_class_val},per class accuracy: {per_class_accuracy_val}")
-    with open(os.path.join(output_folder, 'validation_per_class_accuracy.txt'), 'w') as f:
-        for acc in per_class_accuracy_val:
+
+    # Test Phase
+    avg_loss_test, overall_accuracy_test, per_class_accuracy_test, exact_match_test, f1_macro_test, f1_micro_test, f1_per_class_test = validate_model(model, test_loader, device, criterion)
+    print(f"Test Loss: {avg_loss_test}, Test Accuracy: {overall_accuracy_test}, Test Exact Match: {exact_match_test}, Test F1 Macro: {f1_macro_test}, Test F1 Micro: {f1_micro_test}, Test F1 per Class: {f1_per_class_test}, per class accuracy: {per_class_accuracy_test}")
+    with open(os.path.join(output_folder, 'test_results.txt'), 'w') as f:
+        f.write(f"Test Loss: {avg_loss_test}, Test Accuracy: {overall_accuracy_test}, Test Exact Match: {exact_match_test}, Test F1 Macro: {f1_macro_test}, Test F1 Micro: {f1_micro_test}, Test F1 per Class: {f1_per_class_test}, per class accuracy: {per_class_accuracy_test}")
+    with open(os.path.join(output_folder, 'test_per_class_accuracy.txt'), 'w') as f:
+        for acc in per_class_accuracy_test:
             f.write(f"{acc}\n")
-    with open(os.path.join(output_folder, 'validation_f1_per_class.txt'), 'w') as f:
-        for f1 in f1_per_class_val:
+    with open(os.path.join(output_folder, 'test_f1_per_class.txt'), 'w') as f:
+        for f1 in f1_per_class_test:
             f.write(f"{f1}\n")
-    with open(os.path.join(output_folder, 'validation_f1_macro.txt'), 'w') as f:
-        f.write(f"{f1_macro_val}\n")
-    with open(os.path.join(output_folder, 'validation_f1_micro.txt'), 'w') as f:
-        f.write(f"{f1_micro_val}\n")
-    with open(os.path.join(output_folder, 'validation_exact_match.txt'), 'w') as f:
-        f.write(f"{exact_match_val}\n")
-    with open(os.path.join(output_folder, 'validation_accuracy.txt'), 'w') as f:
-        f.write(f"{overall_accuracy_val}\n")
-    with open(os.path.join(output_folder, 'validation_loss.txt'), 'w') as f:
-        f.write(f"{avg_loss_val}\n")
-    return train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, test_losses, test_overall_acc_list, test_exact_matches, test_f1_overall_list
+    with open(os.path.join(output_folder, 'test_f1_macro.txt'), 'w') as f:
+        f.write(f"{f1_macro_test}\n")
+    with open(os.path.join(output_folder, 'test_f1_micro.txt'), 'w') as f:
+        f.write(f"{f1_micro_test}\n")
+    with open(os.path.join(output_folder, 'test_exact_match.txt'), 'w') as f:
+        f.write(f"{exact_match_test}\n")
+    with open(os.path.join(output_folder, 'test_accuracy.txt'), 'w') as f:
+        f.write(f"{overall_accuracy_test}\n")
+    with open(os.path.join(output_folder, 'test_loss.txt'), 'w') as f:
+        f.write(f"{avg_loss_test}\n")
+
+    return train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list
 
 
 
 
 if __name__ == "__main__":
-    train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, test_losses, test_overall_acc_list, test_exact_matches, test_f1_overall_list=train_classifier(batch_size=16, num_workers=4, num_epochs=50, learning_rate=0.001, model_dir='model.pth')
+    train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list=train_classifier(batch_size=16, num_workers=4, num_epochs=1, learning_rate=0.001, model_dir='model.pth')
     # Define epochs (assuming one metric per epoch)
     epochs = range(1, len(train_losses) + 1)
     results_folder = "results"
@@ -379,10 +330,10 @@ if __name__ == "__main__":
     # ------------------------------
     plt.figure()
     plt.plot(epochs, train_losses, label="Train Loss", marker="o")
-    plt.plot(epochs, test_losses, label="Test Loss", marker="o")
+    plt.plot(epochs, val_losses, label="Validation Loss", marker="o")
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
-    plt.title("Train & Test Loss")
+    plt.title("Train & Val Loss")
     plt.legend()
     plt.grid(True)
     plt.savefig(os.path.join(results_folder, "losses.png"))
@@ -393,10 +344,10 @@ if __name__ == "__main__":
     # ------------------------------
     plt.figure()
     plt.plot(epochs, train_overall_acc_list, label="Train Overall Accuracy", marker="o")
-    plt.plot(epochs, test_overall_acc_list, label="Test Overall Accuracy", marker="o")
+    plt.plot(epochs, val_overall_acc_list, label="Validation Overall Accuracy", marker="o")
     plt.xlabel("Epoch")
     plt.ylabel("Overall Accuracy")
-    plt.title("Train & Test Overall Accuracy")
+    plt.title("Train & Val Overall Accuracy")
     plt.legend()
     plt.grid(True)
     plt.savefig(os.path.join(results_folder, "overall_accuracy.png"))
@@ -407,10 +358,10 @@ if __name__ == "__main__":
     # ------------------------------
     plt.figure()
     plt.plot(epochs, train_exact_matches, label="Train Exact Matches", marker="o")
-    plt.plot(epochs, test_exact_matches, label="Test Exact Matches", marker="o")
+    plt.plot(epochs, val_exact_matches, label="Validation Exact Matches", marker="o")
     plt.xlabel("Epoch")
     plt.ylabel("Exact Match Ratio")
-    plt.title("Train & Test Exact Match Ratio")
+    plt.title("Train & Val Exact Match Ratio")
     plt.legend()
     plt.grid(True)
     plt.savefig(os.path.join(results_folder, "exact_matches.png"))
@@ -421,10 +372,10 @@ if __name__ == "__main__":
     # ------------------------------
     plt.figure()
     plt.plot(epochs, train_f1_overall_list, label="Train Overall F1", marker="o")
-    plt.plot(epochs, test_f1_overall_list, label="Test Overall F1", marker="o")
+    plt.plot(epochs, val_f1_overall_list, label="Validation Overall F1", marker="o")
     plt.xlabel("Epoch")
     plt.ylabel("Overall F1 Score")
-    plt.title("Train & Test Overall F1 Score")
+    plt.title("Train & Val Overall F1 Score")
     plt.legend()
     plt.grid(True)
     plt.savefig(os.path.join(results_folder, "overall_f1.png"))
