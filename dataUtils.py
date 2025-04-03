@@ -55,7 +55,7 @@ def get_train_val_test_split(transform,train_split=0.8, val_split=0.1):
         train_dataset, test_val_dataset = random_split(dataset, [train_size,l-train_size])
 
         l0 = len(test_val_dataset)
-        val_size = int(len(l* val_split))
+        val_size = int(l* val_split)
         test_size = l0 - val_size
 
         val_dataset, test_dataset = random_split(test_val_dataset, [val_size, test_size])
