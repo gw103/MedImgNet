@@ -114,16 +114,49 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
 
     print("*"*10+"Data loaded"+"*"*10,flush=True)
     model = Classifier().to(device)
-    print("*"*10+"Freezing layers"+"*"*10,flush=True)
+    if finetune:
+        print("*"*10+"Freezing layers"+"*"*10,flush=True)
     if finetune:
         for name, param in model.model.named_parameters():
             if 'conv1' in name or 'fc' in name:
                 param.requires_grad = True
             else:
                 param.requires_grad = False
- 
+    counts = {
+    "Atelectasis": 15430,
+    "Cardiomegaly": 3609,
+    "Effusion": 18029,
+    "Infiltration": 27765,
+    "Mass": 7696,
+    "Nodule": 8715,
+    "Pneumonia": 1860,
+    "Pneumothorax": 7370,
+    "Consolidation": 6078,
+    "Edema": 2998,
+    "Emphysema": 3308,
+    "Fibrosis": 2029,
+    "Pleural_Thickening": 4630,
+    "Hernia": 292,
+    "No Finding": 79030
+    }
 
-    criterion = nn.BCEWithLogitsLoss()
+    total_samples = 111601
+
+    # Calculate pos_weight
+    pos_weights = {label: (total_samples - count) / count for label, count in counts.items()}
+
+    for label, weight in pos_weights.items():
+        print(f"{label}: {weight:.2f}")
+
+    label_map = [
+        "Atelectasis", "Cardiomegaly", "Effusion", "Infiltration", "Mass",
+        "Nodule", "Pneumonia", "Pneumothorax", "Consolidation", "Edema",
+        "Emphysema", "Fibrosis", "Pleural_Thickening", "Hernia", "No Finding"
+    ]
+
+    pos_weight_tensor = torch.tensor([pos_weights[label] for label in label_map], dtype=torch.float).to(device)
+    
+    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight_tensor)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-5)
  
     train_losses = []
