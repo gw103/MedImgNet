@@ -82,7 +82,7 @@ def validate_model(model, val_loader, device, criterion):
 
 
 
-def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_dir, train_split=0.6,patience = 20):
+def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_dir, train_split=0.6,patience = 20, finetune = False):
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor()
@@ -115,11 +115,12 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     print("*"*10+"Data loaded"+"*"*10,flush=True)
     model = Classifier().to(device)
     print("*"*10+"Freezing layers"+"*"*10,flush=True)
-    for name, param in model.model.named_parameters():
-        if 'conv1' in name or 'fc' in name:
-            param.requires_grad = True
-        else:
-            param.requires_grad = False
+    if finetune:
+        for name, param in model.model.named_parameters():
+            if 'conv1' in name or 'fc' in name:
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
  
 
     criterion = nn.BCEWithLogitsLoss()
