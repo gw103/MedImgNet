@@ -46,18 +46,23 @@ def load_images_from_gcs(bucket_name, directory='datasets/nih-chest-xrays/images
     print(f"Total images loaded: {len(images)}")
     
     return images
-def get_train_val_test_split(transform,train_split=0.8, val_split=0.1, test_split=0.1):
+def get_train_val_test_split(transform,train_split=0.8, val_split=0.1):
         dataset = ImageLabelDataset(transform=transform)
         print("Dataset length: ", len(dataset),flush=True)
+        l = len(dataset)
         train_size = int(len(dataset) * train_split)
 
-        train_dataset, test_val_dataset = random_split(dataset, [train_size,1-train_size])
+        train_dataset, test_val_dataset = random_split(dataset, [train_size,l-train_size])
 
-        val_dataset, test_dataset = random_split(test_val_dataset, [val_split/(val_split+test_split), test_split/(val_split+test_split)])
+        l0 = len(test_val_dataset)
+        val_size = int(len(l* val_split))
+        test_size = l0 - val_size
+
+        val_dataset, test_dataset = random_split(test_val_dataset, [val_size, test_size])
 
         print("Train dataset length: ", len(train_dataset),flush=True)
-        print("Test dataset length: ", len(val_dataset),flush=True)
-        print("Val dataset length: ", len(test_dataset),flush=True)
+        print("Validation dataset length: ", len(val_dataset),flush=True)
+        print("Test dataset length: ", len(test_dataset),flush=True)
         print("*"*10+"Loading data"+"*"*10,flush=True)
         return train_dataset, val_dataset, test_dataset
 def compute_pos_weight_tensor(device):
