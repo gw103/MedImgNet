@@ -46,7 +46,7 @@ def load_images_from_gcs(bucket_name, directory='datasets/nih-chest-xrays/images
     print(f"Total images loaded: {len(images)}")
     
     return images
-def get_train_val_test_split(train_split=0.8, val_split=0.1, test_split=0.1):
+def get_train_val_test_split(transform,train_split=0.8, val_split=0.1, test_split=0.1):
         dataset = ImageLabelDataset(transform=transform)
         print("Dataset length: ", len(dataset),flush=True)
         train_size = int(len(dataset) * train_split)

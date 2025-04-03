@@ -91,7 +91,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}',flush=True)
 
-    train_dataset, val_dataset, test_dataset = get_train_val_test_split(train_split=0.6)
+    train_dataset, val_dataset, test_dataset = get_train_val_test_split(transform=transform,train_split=0.6)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
