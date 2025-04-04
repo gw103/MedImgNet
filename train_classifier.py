@@ -83,11 +83,8 @@ def validate_model(model, val_loader, device, criterion):
 
 
 
-def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_dir, train_split=0.6,patience = 20, finetune = False,model_name="resnet18"):
-    transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor()
-    ])
+def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_dir, transform,train_split=0.6,patience = 20, finetune = False,model_name="resnet18"):
+
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}',flush=True)
@@ -151,7 +148,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
             labels = labels.to(device).float()
             optimizer.zero_grad()
             outputs = model(images)  # output shape (batch_size, num_classes)
-            predicted = (torch.sigmoid(outputs) > 0.5).float()
+            predicted = (torch.sigmoid(outputs) > 0.3).float()
             # loss
             loss = criterion(outputs, labels)
             running_loss += loss.item()
@@ -210,7 +207,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
                 loss = criterion(outputs, labels)
                 running_loss_val += loss.item()
                 # correct per class, used for calculating accuracy per class
-                predicted = (torch.sigmoid(outputs) > 0.5).float()
+                predicted = (torch.sigmoid(outputs) > 0.3).float()
                 correct_per_class = (predicted == labels).sum(dim=0)
                 val_correct_list.append(correct_per_class)
                 # list of predicted tensors, each tensor has shape (batch_size, num_classes)
@@ -325,14 +322,19 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
         f.write(f"{overall_accuracy_test}\n")
     with open(os.path.join(output_folder, 'test_loss.txt'), 'w') as f:
         f.write(f"{avg_loss_test}\n")
+    sample_data = 
 
-    return train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list
+    return train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list,model
 
 
 
 
 if __name__ == "__main__":
-    train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list=train_classifier(batch_size=16, num_workers=4, num_epochs=1, learning_rate=0.001, model_dir='model.pth',finetune=True)
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor()
+    ])
+    train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list, model=train_classifier(batch_size=16, num_workers=4, num_epochs=1, transform=transform,learning_rate=0.001, model_dir='model.pth',finetune=True)
     # Define epochs (assuming one metric per epoch)
     epochs = range(1, len(train_losses) + 1)
     results_folder = "results"
@@ -393,3 +395,20 @@ if __name__ == "__main__":
     plt.close()
 
     print("Plots saved in the 'results' folder.")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    train,val,test = get_train_val_test_split(transform=transform,train_split=0.6)
+    for i in range(5):
+        print(f"Train sample {i}: {train[i]}, labels: {train.labels[i]}")
+        predict_train = model(train[i].unsqueeze(0).to(device))
+        print(f"Prediction train: {(torch.sigmoid(predict_train)>0.3).float()}")
+        print(f"Val sample {i}: {val[i]}, labels: {val.labels[i]}")
+        predict_val = model(val[i].unsqueeze(0).to(device))
+        print(f"Prediction val: {(torch.sigmoid(predict_val)>0.3).float()}")
+        print(f"Test sample {i}: {test[i]}, labels: {test.labels[i]}")
+        predict_test = model(test[i].unsqueeze(0).to(device))
+        print(f"Prediction test: {(torch.sigmoid(predict_test)>0.3).float()}")
+        print("*"*20)
+    
+
+
+
