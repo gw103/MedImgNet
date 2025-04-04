@@ -85,25 +85,18 @@ def compute_pos_weight_tensor(device):
     }
     
     total_samples = 111601
-
-
     pos_weights = {label: (total_samples - count) / count for label, count in counts.items()}
-    
-
     for label, weight in pos_weights.items():
         print(f"{label}: {weight:.2f}")
-
     label_map = [
         "Atelectasis", "Cardiomegaly", "Effusion", "Infiltration", "Mass",
         "Nodule", "Pneumonia", "Pneumothorax", "Consolidation", "Edema",
         "Emphysema", "Fibrosis", "Pleural_Thickening", "Hernia", "No Finding"
     ]
-
     pos_weight_tensor = torch.tensor(
         [pos_weights[label] for label in label_map],
         dtype=torch.float
     ).to(device)
-    
     return pos_weight_tensor
 
 def get_last_image_index():

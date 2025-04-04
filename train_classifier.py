@@ -82,9 +82,9 @@ def validate_model(model, val_loader, device, criterion):
 
 
 
-def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_dir, train_split=0.6,patience = 20, finetune = False):
+def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_dir, train_split=0.6,patience = 20, finetune = False,model_name="resnet18"):
     transform = transforms.Compose([
-        transforms.Resize((448, 448)),
+        transforms.Resize((224, 224)),
         transforms.ToTensor()
     ])
 
@@ -97,6 +97,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
     print("*"*10+"Data loaded"+"*"*10,flush=True)
+    print(f"Using backbone: {model_name}",flush=True)
     model = Classifier().to(device)
     if finetune:
         print("*" * 10 + "Freezing layers" + "*" * 10, flush=True)
@@ -142,7 +143,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
         all_preds_train = []  # used for calculating f1 per class
         all_labels_train = []  # used for calculating f1 per class
         matches = 0  # used for calculating exact matches
-        for images, labels in train_loader:
+        for images, labels in tqdm(train_loader):
             images = images.to(device)
             labels = labels.to(device).float()
             optimizer.zero_grad()
