@@ -397,7 +397,7 @@ if __name__ == "__main__":
     print("Plots saved in the 'results' folder.")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     train,val,test = get_train_val_test_split(transform=transform,train_split=0.6)
-    for i in range(5):
+    for i in range(1,200,10):
         print(f"Train sample {i}: {train[i]}, labels: {train.labels[i]}")
         predict_train = model(train[i].unsqueeze(0).to(device))
         print(f"Prediction train: {(torch.sigmoid(predict_train)>0.3).float()}")
