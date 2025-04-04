@@ -1,5 +1,6 @@
 from modelUtils import Classifier
 from dataUtils import *
+from trainUtils import BCEWithConstraintLoss
 from torch.utils.data import DataLoader, random_split
 import torch
 import torch.nn as nn
@@ -114,9 +115,11 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
                 else:
                     param.requires_grad = False
     pos_weight_tensor = compute_pos_weight_tensor(device)
-    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight_tensor)
+    criterion = BCEWithConstraintLoss(pos_weight=pos_weight_tensor).to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-5)
- 
+    
+    counter = 0
+
     train_losses = []
     train_accs_list_list = []#Store the accuracy per class for each epoch
     train_f1s_list_list = []#Store the f1 per class for each epoch
