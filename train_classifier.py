@@ -322,7 +322,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
         f.write(f"{overall_accuracy_test}\n")
     with open(os.path.join(output_folder, 'test_loss.txt'), 'w') as f:
         f.write(f"{avg_loss_test}\n")
-    sample_data = 
+    
 
     return train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list,model
 
