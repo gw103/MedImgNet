@@ -115,7 +115,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
                 else:
                     param.requires_grad = False
     pos_weight_tensor = compute_pos_weight_tensor(device)
-    criterion = BCEWithConstraintLoss(pos_weight=pos_weight_tensor).to(device)
+    criterion = BCEWithConstraintLoss(pos_weight=None,penalty_weight=1).to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-5)
     
     counter = 0
