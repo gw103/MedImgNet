@@ -398,16 +398,19 @@ if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     train,val,test = get_train_val_test_split(transform=transform,train_split=0.6)
     for i in range(1,200,10):
-        print(f"Train sample {i}: , labels: {train.labels[i]}")
-        predict_train = model(train[i].unsqueeze(0).to(device))
+        train_img,train_labels = train[i]
+        print(f"Train sample {i}: , labels: {train_labels}")
+        predict_train = model(train_img.unsqueeze(0).to(device))
         print(f"Prediction train: {(torch.sigmoid(predict_train)>0.3).float()}")
-        print(f"Val sample {i}: , labels: {val.labels[i]}")
-        predict_val = model(val[i].unsqueeze(0).to(device))
+        val_img,val_labels = val[i]
+        print(f"Val sample {i}: , labels: {val_labels}")    
+        predict_val = model(val_img.unsqueeze(0).to(device))
         print(f"Prediction val: {(torch.sigmoid(predict_val)>0.3).float()}")
-        print(f"Test sample {i}: , labels: {test.labels[i]}")
-        predict_test = model(test[i].unsqueeze(0).to(device))
+        test_img,test_labels = test[i]
+        print(f"Test sample {i}: , labels: {test_labels}")
+        predict_test = model(test_img.unsqueeze(0).to(device))
         print(f"Prediction test: {(torch.sigmoid(predict_test)>0.3).float()}")
-        print("*"*20)
+        print("="*50)
     
 
 
