@@ -84,7 +84,7 @@ def validate_model(model, val_loader, device, criterion):
 
 def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_dir, train_split=0.6,patience = 20, finetune = False):
     transform = transforms.Compose([
-        transforms.Resize((224, 224)),
+        transforms.Resize((448, 448)),
         transforms.ToTensor()
     ])
 
