@@ -65,7 +65,7 @@ def get_train_val_test_split(transform,train_split=0.8, val_split=0.1):
         print("Test dataset length: ", len(test_dataset),flush=True)
         print("*"*10+"Loading data"+"*"*10,flush=True)
         return train_dataset, val_dataset, test_dataset
-def compute_pos_weight_tensor(device):
+def compute_pos_weight_tensor(device,k=1):
     counts = {
         "Atelectasis": 15430,
         "Cardiomegaly": 3609,
@@ -85,7 +85,10 @@ def compute_pos_weight_tensor(device):
     }
     
     total_samples = 111601
-    pos_weights = {label: (total_samples - count) / count for label, count in counts.items()}
+    if k == 0:
+        pos_weights = {label: (total_samples - count) / count for label, count in counts.items()}
+    elif k == 1:
+        pos_weights = {label: 1/count for label, count in counts.items()}
     for label, weight in pos_weights.items():
         print(f"{label}: {weight:.2f}")
     label_map = [
