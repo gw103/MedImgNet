@@ -99,12 +99,19 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     print("*"*10+"Data loaded"+"*"*10,flush=True)
     model = Classifier().to(device)
     if finetune:
-        print("*"*10+"Freezing layers"+"*"*10,flush=True)
-        for name, param in model.model.named_parameters():
-            if 'conv1' in name or 'fc' in name:
-                param.requires_grad = True
-            else:
-                param.requires_grad = False
+        print("*" * 10 + "Freezing layers" + "*" * 10, flush=True)
+        if model.backbone in ['resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']:
+            for name, param in model.model.named_parameters():
+                if 'conv1' in name or 'fc' in name:
+                    param.requires_grad = True
+                else:
+                    param.requires_grad = False
+        elif model.backbone in ['densenet121', 'densenet169', 'densenet201']:
+            for name, param in model.model.named_parameters():
+                if 'features.conv0' in name or 'classifier' in name:
+                    param.requires_grad = True
+                else:
+                    param.requires_grad = False
     pos_weight_tensor = compute_pos_weight_tensor(device)
     criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight_tensor)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-5)
@@ -321,7 +328,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
 
 
 if __name__ == "__main__":
-    train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list=train_classifier(batch_size=16, num_workers=4, num_epochs=1, learning_rate=0.001, model_dir='model.pth')
+    train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list=train_classifier(batch_size=16, num_workers=4, num_epochs=1, learning_rate=0.001, model_dir='model.pth',finetune=True)
     # Define epochs (assuming one metric per epoch)
     epochs = range(1, len(train_losses) + 1)
     results_folder = "results"

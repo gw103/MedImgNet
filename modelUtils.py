@@ -1,22 +1,62 @@
 import torch
 import torch.nn as nn
 import torchvision
-
-
 class Classifier(nn.Module):
-    def __init__(self):
+    def __init__(self, backbone='resnet50', num_classes=15, pretrained=False):
         super(Classifier, self).__init__()
-        self.model = torchvision.models.resnet101(weights=None)
-        self.model.conv1 = nn.Conv2d(in_channels=1, out_channels=64, kernel_size=7, stride=2, padding=3, bias=False)
-        # Change the final layer to output 14 classes
-
-        self.model.fc = nn.Sequential(
-            nn.Dropout(0.5),
-            nn.Linear(self.model.fc.in_features, 15)
-        )
-
+        self.backbone = backbone.lower()
+        if self.backbone in ['resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']:
+            resnet_func = getattr(torchvision.models, self.backbone)
+            weights = None
+            if pretrained:
+                if self.backbone == 'resnet50':
+                    weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V2
+            self.model = resnet_func(weights=weights)
+            # Modify first conv layer to accept 1-channel input.
+            self.model.conv1 = nn.Conv2d(
+                in_channels=1,
+                out_channels=self.model.conv1.out_channels,
+                kernel_size=self.model.conv1.kernel_size,
+                stride=self.model.conv1.stride,
+                padding=self.model.conv1.padding,
+                bias=False
+            )
+            num_features = self.model.fc.in_features
+            self.model.fc = nn.Sequential(
+                nn.Dropout(0.5),
+                nn.Linear(num_features, num_classes)
+            )
+        elif self.backbone in ['densenet121', 'densenet169', 'densenet201']:
+            densenet_func = getattr(torchvision.models, self.backbone)
+            weights = None
+            if pretrained:
+                if self.backbone == 'densenet121':
+                    weights = torchvision.models.DenseNet121_Weights.IMAGENET1K_V1
+                elif self.backbone == 'densenet169':
+                    weights = torchvision.models.DenseNet169_Weights.IMAGENET1K_V1
+                elif self.backbone == 'densenet201':
+                    weights = torchvision.models.DenseNet201_Weights.IMAGENET1K_V1
+            self.model = densenet_func(weights=weights)
+            # Modify first conv layer.
+            self.model.features.conv0 = nn.Conv2d(
+                in_channels=1,
+                out_channels=self.model.features.conv0.out_channels,
+                kernel_size=self.model.features.conv0.kernel_size,
+                stride=self.model.features.conv0.stride,
+                padding=self.model.features.conv0.padding,
+                bias=False
+            )
+            num_features = self.model.classifier.in_features
+            self.model.classifier = nn.Sequential(
+                nn.Dropout(0.5),
+                nn.Linear(num_features, num_classes)
+            )
+        else:
+            raise ValueError("Unsupported backbone.")
+    
     def forward(self, x):
         return self.model(x)
+
     
 class Regressor(nn.Module):
     def __init__(self, classifer_dir=None, classifier=None):
