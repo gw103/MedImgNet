@@ -89,7 +89,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}',flush=True)
 
-    train_dataset, val_dataset, test_dataset = get_train_val_test_split(transform=transform,train_split=0.6)
+    train_dataset, val_dataset, test_dataset = get_train_val_test_split(transform=transform,train_split=train_split)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
@@ -114,7 +114,8 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     pos_weight_tensor = compute_pos_weight_tensor(device)
     criterion = BCEWithConstraintAndF1Loss(pos_weight=pos_weight_tensor,penalty_weight=1).to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-5)
-    
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+
     counter = 0
 
     train_losses = []
@@ -164,6 +165,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
 
             loss.backward()
             optimizer.step()
+        scheduler.step()
     
         # train losses
         train_avg_loss = running_loss / len(train_loader)
@@ -334,7 +336,7 @@ if __name__ == "__main__":
         transforms.Resize((224, 224)),
         transforms.ToTensor()
     ])
-    train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list, model=train_classifier(batch_size=16, num_workers=4, num_epochs=2, transform=transform,learning_rate=0.001, model_dir='model.pth',finetune=True)
+    train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list, model=train_classifier(batch_size=16, num_workers=4, num_epochs=2, transform=transform,learning_rate=0.005, model_dir='model.pth',finetune=True)
     # Define epochs (assuming one metric per epoch)
     epochs = range(1, len(train_losses) + 1)
     results_folder = "results"
