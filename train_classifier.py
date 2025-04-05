@@ -1,6 +1,6 @@
 from modelUtils import Classifier
 from dataUtils import *
-from trainUtils import BCEWithConstraintLoss
+from trainUtils import BCEWithConstraintAndF1Loss
 from torch.utils.data import DataLoader, random_split
 import torch
 import torch.nn as nn
@@ -112,7 +112,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
                 else:
                     param.requires_grad = False
     pos_weight_tensor = compute_pos_weight_tensor(device)
-    criterion = BCEWithConstraintLoss(pos_weight=pos_weight_tensor,penalty_weight=5).to(device)
+    criterion = BCEWithConstraintAndF1Loss(pos_weight=pos_weight_tensor,penalty_weight=5).to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-5)
     
     counter = 0
