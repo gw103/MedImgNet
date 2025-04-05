@@ -100,8 +100,7 @@ def compute_pos_weight_tensor(device, k=0, log_scale_if_gt1=True):
             if w > 10.0:
                 pos_weights[label] = float(torch.log(torch.tensor(w)))
 
-    for label, weight in pos_weights.items():
-        print(f"{label}: {weight:.4f}")
+
 
     label_map = [
         "Atelectasis", "Cardiomegaly", "Effusion", "Infiltration", "Mass",
@@ -126,7 +125,8 @@ def compute_pos_weight_tensor(device, k=0, log_scale_if_gt1=True):
     pos_weight_tensor[13] = 20*pos_weight_tensor[13]  
     pos_weight_tensor[14] = 0.2*pos_weight_tensor[14]  # Adjusting the weight for No Finding
     pos_weight_tensor = pos_weight_tensor.to(device)
-    print("Pos weight tensor:", pos_weight_tensor)
+    for i in range(len(pos_weight_tensor)):
+        print(f"Label: {label_map[i]}, Weight: {pos_weight_tensor[i].item()}", flush=True)
 
     return pos_weight_tensor
 
