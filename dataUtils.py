@@ -120,10 +120,10 @@ def compute_pos_weight_tensor(device, k=0, log_scale_if_gt1=True):
     pos_weight_tensor[7] = 2*pos_weight_tensor[7]  # Adjusting the weight for Fibrosis
     pos_weight_tensor[8] = 2*pos_weight_tensor[8]  # Adjusting the weight for Pleural_Thickening
     pos_weight_tensor[9] = 3*pos_weight_tensor[9]  # Adjusting the weight for Hernia
-    pos_weight_tensor[10] = 10*pos_weight_tensor[10]  # Adjusting the weight for No Finding
-    pos_weight_tensor[11] = 10*pos_weight_tensor[11]  # Adjusting the weight for No Finding
-    pos_weight_tensor[12] = 5*pos_weight_tensor[12]  # Adjusting the weight for No Finding
-    pos_weight_tensor[13] = 20*pos_weight_tensor[13]  # Adjusting the weight for No Finding
+    pos_weight_tensor[10] = 10*pos_weight_tensor[10] 
+    pos_weight_tensor[11] = 10*pos_weight_tensor[11]  
+    pos_weight_tensor[12] = 5*pos_weight_tensor[12]  
+    pos_weight_tensor[13] = 20*pos_weight_tensor[13]  
     pos_weight_tensor[14] = 0.2*pos_weight_tensor[14]  # Adjusting the weight for No Finding
     pos_weight_tensor = pos_weight_tensor.to(device)
 
