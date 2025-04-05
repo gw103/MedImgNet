@@ -65,7 +65,7 @@ def get_train_val_test_split(transform,train_split=0.8, val_split=0.1):
         print("Test dataset length: ", len(test_dataset),flush=True)
         print("*"*10+"Loading data"+"*"*10,flush=True)
         return train_dataset, val_dataset, test_dataset
-def compute_pos_weight_tensor(device, k=1, log_scale_if_gt1=True):
+def compute_pos_weight_tensor(device, k=0, log_scale_if_gt1=True):
     counts = {
         "Atelectasis": 15430,
         "Cardiomegaly": 3609,
@@ -97,7 +97,7 @@ def compute_pos_weight_tensor(device, k=1, log_scale_if_gt1=True):
     if log_scale_if_gt1:
         for label in pos_weights:
             w = pos_weights[label]
-            if w > 1.0:
+            if w > 10.0:
                 pos_weights[label] = float(torch.log(torch.tensor(w)))
 
     for label, weight in pos_weights.items():
