@@ -336,7 +336,7 @@ if __name__ == "__main__":
         transforms.Resize((224, 224)),
         transforms.ToTensor()
     ])
-    train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list, model=train_classifier(batch_size=16, num_workers=4, num_epochs=2, transform=transform,learning_rate=0.005, model_dir='model.pth',finetune=True)
+    train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list, model=train_classifier(batch_size=16, num_workers=4, num_epochs=50, transform=transform,learning_rate=0.005, model_dir='model.pth',finetune=True)
     # Define epochs (assuming one metric per epoch)
     epochs = range(1, len(train_losses) + 1)
     results_folder = "results"
