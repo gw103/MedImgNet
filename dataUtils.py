@@ -112,22 +112,22 @@ def compute_pos_weight_tensor(device, k=0, log_scale_if_gt1=True):
         [pos_weights[label] for label in label_map],
         dtype=torch.float
     )
-    pos_weight_tensor[0] = 0.3*pos_weight_tensor[0]  # Adjusting the weight for Atelectasis
-    pos_weight_tensor[1] = 10*pos_weight_tensor[1]
-    pos_weight_tensor[2] = 0.25*pos_weight_tensor[2] 
-    pos_weight_tensor[3] = 0.2*pos_weight_tensor[3]
-    pos_weight_tensor[4] = 5*pos_weight_tensor[4]  # Adjusting the weight for Mass
-    pos_weight_tensor[5] = 5*pos_weight_tensor[5]  # Adjusting the weight for Pneumonia
-    pos_weight_tensor[6] = 10*pos_weight_tensor[6]  # Adjusting the weight for Emphysema
-    pos_weight_tensor[7] = 2*pos_weight_tensor[7]  # Adjusting the weight for Fibrosis
-    pos_weight_tensor[8] = 2*pos_weight_tensor[8]  # Adjusting the weight for Pleural_Thickening
-    pos_weight_tensor[9] = 3*pos_weight_tensor[9]  # Adjusting the weight for Hernia
-    pos_weight_tensor[10] = 10*pos_weight_tensor[10] 
-    pos_weight_tensor[11] = 10*pos_weight_tensor[11]  
-    pos_weight_tensor[12] = 5*pos_weight_tensor[12]  
-    pos_weight_tensor[13] = 100*pos_weight_tensor[13]  
-    pos_weight_tensor[14] = pos_weight_tensor[14]  # Adjusting the weight for No Finding
-    pos_weight_tensor = pos_weight_tensor.to(device)
+    # pos_weight_tensor[0] = 0.3*pos_weight_tensor[0]  # Adjusting the weight for Atelectasis
+    # pos_weight_tensor[1] = 10*pos_weight_tensor[1]
+    # pos_weight_tensor[2] = 0.25*pos_weight_tensor[2] 
+    # pos_weight_tensor[3] = 0.2*pos_weight_tensor[3]
+    # pos_weight_tensor[4] = 5*pos_weight_tensor[4]  # Adjusting the weight for Mass
+    # pos_weight_tensor[5] = 5*pos_weight_tensor[5]  # Adjusting the weight for Pneumonia
+    # pos_weight_tensor[6] = 10*pos_weight_tensor[6]  # Adjusting the weight for Emphysema
+    # pos_weight_tensor[7] = 2*pos_weight_tensor[7]  # Adjusting the weight for Fibrosis
+    # pos_weight_tensor[8] = 2*pos_weight_tensor[8]  # Adjusting the weight for Pleural_Thickening
+    # pos_weight_tensor[9] = 3*pos_weight_tensor[9]  # Adjusting the weight for Hernia
+    # pos_weight_tensor[10] = 10*pos_weight_tensor[10] 
+    # pos_weight_tensor[11] = 10*pos_weight_tensor[11]  
+    # pos_weight_tensor[12] = 5*pos_weight_tensor[12]  
+    # pos_weight_tensor[13] = 100*pos_weight_tensor[13]  
+    # pos_weight_tensor[14] = pos_weight_tensor[14]  # Adjusting the weight for No Finding
+    # pos_weight_tensor = pos_weight_tensor.to(device)
     for i in range(len(pos_weight_tensor)):
         print(f"Label: {label_map[i]}, Weight: {pos_weight_tensor[i].item()}", flush=True)
 
