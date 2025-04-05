@@ -126,6 +126,7 @@ def compute_pos_weight_tensor(device, k=0, log_scale_if_gt1=True):
     pos_weight_tensor[13] = 20*pos_weight_tensor[13]  
     pos_weight_tensor[14] = 0.2*pos_weight_tensor[14]  # Adjusting the weight for No Finding
     pos_weight_tensor = pos_weight_tensor.to(device)
+    print("Pos weight tensor:", pos_weight_tensor)
 
     return pos_weight_tensor
 
