@@ -24,7 +24,7 @@ def soft_f1_loss(y_pred, y_true, eps=1e-7):
     return 1 - soft_f1.mean()  # minimize 1 - F1
 
 class BCEWithConstraintAndF1Loss(nn.Module):
-    def __init__(self, pos_weight=None, penalty_weight=1, f1_weight=1.0):
+    def __init__(self, pos_weight=None, penalty_weight=1, f1_weight=10.0):
         """
         penalty_weight: how strongly to enforce class 14 exclusivity logic
         f1_weight: how much to prioritize soft F1 optimization
