@@ -65,7 +65,7 @@ def get_train_val_test_split(transform,train_split=0.8, val_split=0.1):
         print("Test dataset length: ", len(test_dataset),flush=True)
         print("*"*10+"Loading data"+"*"*10,flush=True)
         return train_dataset, val_dataset, test_dataset
-def compute_pos_weight_tensor(device,k=1):
+def compute_pos_weight_tensor(device, k=1, log_scale_if_gt1=True):
     counts = {
         "Atelectasis": 15430,
         "Cardiomegaly": 3609,
@@ -83,24 +83,39 @@ def compute_pos_weight_tensor(device,k=1):
         "Hernia": 292,
         "No Finding": 79030
     }
-    
+
     total_samples = 111601
+
     if k == 0:
         pos_weights = {label: (total_samples - count) / count for label, count in counts.items()}
     elif k == 1:
-        pos_weights = {label: 1/count for label, count in counts.items()}
+        pos_weights = {label: 1 / count for label, count in counts.items()}
+    else:
+        raise ValueError("Unsupported k value: use 0 or 1")
+
+    # Apply log scaling to weights > 1
+    if log_scale_if_gt1:
+        for label in pos_weights:
+            w = pos_weights[label]
+            if w > 1.0:
+                pos_weights[label] = float(torch.log(torch.tensor(w)))
+
     for label, weight in pos_weights.items():
-        print(f"{label}: {weight:.2f}")
+        print(f"{label}: {weight:.4f}")
+
     label_map = [
         "Atelectasis", "Cardiomegaly", "Effusion", "Infiltration", "Mass",
         "Nodule", "Pneumonia", "Pneumothorax", "Consolidation", "Edema",
         "Emphysema", "Fibrosis", "Pleural_Thickening", "Hernia", "No Finding"
     ]
+
     pos_weight_tensor = torch.tensor(
         [pos_weights[label] for label in label_map],
         dtype=torch.float
     ).to(device)
+
     return pos_weight_tensor
+
 
 def get_last_image_index():
     directories = [
