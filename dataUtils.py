@@ -68,19 +68,19 @@ def get_train_val_test_split(transform,train_split=0.8, val_split=0.1):
 def compute_pos_weight_tensor(device, k=0, log_scale_if_gt1=True):
     counts = {
         "Atelectasis": 15430,
-        "Cardiomegaly": 3609,
+        "Cardiomegaly": 3609,#
         "Effusion": 18029,
         "Infiltration": 27765,
-        "Mass": 7696,
+        "Mass": 7696,#
         "Nodule": 8715,
-        "Pneumonia": 1860,
+        "Pneumonia": 1860,#
         "Pneumothorax": 7370,
         "Consolidation": 6078,
         "Edema": 2998,
-        "Emphysema": 3308,
-        "Fibrosis": 2029,
-        "Pleural_Thickening": 4630,
-        "Hernia": 292,
+        "Emphysema": 3308,#
+        "Fibrosis": 2029,#
+        "Pleural_Thickening": 4630,#
+        "Hernia": 292,#
         "No Finding": 79030
     }
 
@@ -112,7 +112,20 @@ def compute_pos_weight_tensor(device, k=0, log_scale_if_gt1=True):
     pos_weight_tensor = torch.tensor(
         [pos_weights[label] for label in label_map],
         dtype=torch.float
-    ).to(device)
+    )
+    pos_weight_tensor[1] = 10*pos_weight_tensor[1]  # Adjusting the weight for Cardiomegaly
+    pos_weight_tensor[4] = 5*pos_weight_tensor[4]  # Adjusting the weight for Mass
+    pos_weight_tensor[5] = 5*pos_weight_tensor[5]  # Adjusting the weight for Pneumonia
+    pos_weight_tensor[6] = 10*pos_weight_tensor[6]  # Adjusting the weight for Emphysema
+    pos_weight_tensor[7] = 2*pos_weight_tensor[7]  # Adjusting the weight for Fibrosis
+    pos_weight_tensor[8] = 2*pos_weight_tensor[8]  # Adjusting the weight for Pleural_Thickening
+    pos_weight_tensor[9] = 3*pos_weight_tensor[9]  # Adjusting the weight for Hernia
+    pos_weight_tensor[10] = 10*pos_weight_tensor[10]  # Adjusting the weight for No Finding
+    pos_weight_tensor[11] = 10*pos_weight_tensor[11]  # Adjusting the weight for No Finding
+    pos_weight_tensor[12] = 5*pos_weight_tensor[12]  # Adjusting the weight for No Finding
+    pos_weight_tensor[13] = 20*pos_weight_tensor[13]  # Adjusting the weight for No Finding
+    pos_weight_tensor[14] = 0.2*pos_weight_tensor[14]  # Adjusting the weight for No Finding
+    pos_weight_tensor = pos_weight_tensor.to(device)
 
     return pos_weight_tensor
 
