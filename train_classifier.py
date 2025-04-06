@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from sklearn.metrics import f1_score, precision_score, recall_score
 import os
+import torch.multiprocessing
 
 def validate_model(model, val_loader, device, criterion):
     """
@@ -85,7 +86,7 @@ def validate_model(model, val_loader, device, criterion):
 
 
 
-def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_dir, transform,train_split=0.6,patience = 20, finetune = False,model_name="resnet18"):
+def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_dir, transform,train_split=0.8,patience = 20, finetune = False,model_name="resnet18"):
 
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -117,7 +118,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     # criterion = BCEWithConstraintAndF1Loss(pos_weight=pos_weight_tensor,penalty_weight=1).to(device)
     criterion = FocalLoss(gamma=2).to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-5)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
 
     counter = 0
 
@@ -329,7 +330,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
         f.write(f"{avg_loss_test}\n")
     
 
-    return train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list,model
+    return train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list,model,train_dataset, val_dataset, test_dataset
 
 
 
@@ -339,7 +340,7 @@ if __name__ == "__main__":
         transforms.Resize((224, 224)),
         transforms.ToTensor()
     ])
-    train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list, model=train_classifier(batch_size=16, num_workers=4, num_epochs=50, transform=transform,learning_rate=0.005, model_dir='model.pth',finetune=True)
+    train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list, classifier,train,val,test=train_classifier(batch_size=16, num_workers=4, num_epochs=1, transform=transform,learning_rate=0.001, model_dir='model.pth',finetune=True)
     # Define epochs (assuming one metric per epoch)
     epochs = range(1, len(train_losses) + 1)
     results_folder = "results"
@@ -401,21 +402,94 @@ if __name__ == "__main__":
 
     print("Plots saved in the 'results' folder.")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print("finding best thresholds")
     train,val,test = get_train_val_test_split(transform=transform,train_split=0.6)
+    train_loader = DataLoader(train, batch_size=16, num_workers=4, shuffle=False)
+
+    # ===== Step 1: Collect predictions and labels for the entire dataset =====
+    all_preds = []
+    all_labels = []
+    with torch.no_grad():
+        for images, labels in tqdm(train_loader, desc="Collecting Predictions"):
+            images = images.to(device)
+            outputs = classifier(images)
+            preds = torch.sigmoid(outputs)
+            all_preds.append(preds.cpu())
+            all_labels.append(labels.cpu())
+
+    all_preds = torch.cat(all_preds, dim=0)   # Shape: (N, num_classes)
+    all_labels = torch.cat(all_labels, dim=0)   # Shape: (N, num_classes)
+
+    # ===== Step 2: Vectorized threshold search =====
+    thresholds = np.linspace(0.0, 1.0, 20)      # Candidate thresholds
+    num_classes = 15
+    best_threshold = np.zeros(num_classes)
+    best_f1 = np.zeros(num_classes)
+
+    # Convert thresholds to torch tensor for vectorized operations
+    thresholds_tensor = torch.tensor(thresholds, dtype=torch.float)
+
+    # For each class, compute F1 scores for all thresholds at once
+    for i in tqdm(range(num_classes)):
+        # Get predictions and ground truth for class i
+        p = all_preds[:, i]       # (N,)
+        gt = all_labels[:, i]     # (N,)
+        
+        # Expand dims: thresholds_tensor shape (T, 1) vs. p shape (N,)
+        # Compare each threshold with all predictions
+        preds = (p.unsqueeze(0) >= thresholds_tensor.unsqueeze(1)).float()  # Shape: (T, N)
+        
+        # Compute true positives, false positives, and false negatives for each threshold
+        tp = (preds * gt.unsqueeze(0)).sum(dim=1)
+        fp = (preds * (1 - gt.unsqueeze(0))).sum(dim=1)
+        fn = ((1 - preds) * gt.unsqueeze(0)).sum(dim=1)
+        
+        # Compute F1 score vector (add a tiny constant to denominator to avoid division by zero)
+        denominator = 2 * tp + fp + fn + 1e-7
+        f1_scores = 2 * tp / denominator
+        
+        # Choose the threshold with the best F1 score
+        best_idx = torch.argmax(f1_scores)
+        best_f1[i] = f1_scores[best_idx].item()
+        best_threshold[i] = thresholds_tensor[best_idx].item()
+
+
+    for i in range(num_classes):
+        print(f"Class {i}: Best threshold = {best_threshold[i]:.3f}, F1 score = {best_f1[i]:.3f}")
+
+    #test on the test set
+    print("Testing on the test set")
+    test_loader = DataLoader(test, batch_size=16, num_workers=4, shuffle=False)
+    all_preds_test = []
+    all_labels_test = []
+    with torch.no_grad():
+        for images, labels in tqdm(test_loader, desc="Collecting Predictions"):
+            images = images.to(device)
+            outputs = classifier(images)
+            preds = torch.sigmoid(outputs)
+            all_preds_test.append(preds.cpu())
+            all_labels_test.append(labels.cpu())
+    all_preds_test = torch.cat(all_preds_test, dim=0)   # Shape: (N, num_classes)
+    all_labels_test = torch.cat(all_labels_test, dim=0)   # Shape: (N, num_classes)
+    # Compute F1 scores using the best thresholds
+    all_preds_test = (all_preds_test >= torch.tensor(best_threshold).to(device)).float()
+    all_labels_test = all_labels_test.float()
+    print(f"Test F1 score: {f1_score(all_labels_test.cpu(), all_preds_test.cpu(), average='macro', zero_division=0)}")
     for i in range(1,200,10):
         train_img,train_labels = train[i]
-        print(f"Train sample {i}: , labels: {train_labels}")
-        predict_train = model(train_img.unsqueeze(0).to(device))
-        print(f"Prediction train: {(torch.sigmoid(predict_train)>0.3).float()}")
-        val_img,val_labels = val[i]
-        print(f"Val sample {i}: , labels: {val_labels}")    
-        predict_val = model(val_img.unsqueeze(0).to(device))
-        print(f"Prediction val: {(torch.sigmoid(predict_val)>0.3).float()}")
         test_img,test_labels = test[i]
-        print(f"Test sample {i}: , labels: {test_labels}")
-        predict_test = model(test_img.unsqueeze(0).to(device))
-        print(f"Prediction test: {(torch.sigmoid(predict_test)>0.3).float()}")
-        print("="*50)
+        train_pred = all_preds_test[i]
+        train_pred = train_pred.cpu().numpy()
+        train_labels = train_labels.cpu().numpy()
+        train_img = train_img.cpu().numpy()
+        test_img = test_img.cpu().numpy()
+        test_labels = test_labels.cpu().numpy()
+        plt.imshow(train_img[0], cmap='gray')
+        plt.title(f"Train Image {i}, Pred: {train_pred}, Labels: {train_labels}")
+        plt.close()
+        plt.imshow(test_img[0], cmap='gray')
+        plt.title(f"Test Image {i}, Pred: {train_pred}, Labels: {test_labels}")
+        plt.close()
     
 
 
