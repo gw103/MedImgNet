@@ -1,6 +1,7 @@
 from modelUtils import Classifier
 from dataUtils import *
-from trainUtils import BCEWithConstraintAndF1Loss
+# from trainUtils import BCEWithConstraintAndF1Loss
+from trainUtils import FocalLoss
 from torch.utils.data import DataLoader, random_split
 import torch
 import torch.nn as nn
@@ -10,6 +11,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from sklearn.metrics import f1_score, precision_score, recall_score
 import os
+
 def validate_model(model, val_loader, device, criterion):
     """
     Runs the validation loop once and returns the following metrics:
@@ -112,7 +114,8 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
                 else:
                     param.requires_grad = False
     pos_weight_tensor = compute_pos_weight_tensor(device)
-    criterion = BCEWithConstraintAndF1Loss(pos_weight=pos_weight_tensor,penalty_weight=1).to(device)
+    # criterion = BCEWithConstraintAndF1Loss(pos_weight=pos_weight_tensor,penalty_weight=1).to(device)
+    criterion = FocalLoss(gamma=2).to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-5)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 
