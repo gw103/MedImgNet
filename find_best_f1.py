@@ -7,10 +7,13 @@ from tqdm import tqdm
 from modelUtils import Classifier
 from dataUtils import get_train_val_test_split
 
-classifier = Classifier()
-classifier.load_state_dict(torch.load("results/model.pth", map_location=torch.device('cuda' if torch.cuda.is_available() else 'cpu')))
-classifier.eval()  
+# Set device and load the model
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+classifier = Classifier().to(device)
+classifier.load_state_dict(torch.load("results/model.pth", map_location=device))
+classifier.eval()
 
+# Define transforms and dataset loader
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -20,42 +23,53 @@ train_split = 0.6
 train_dataset, _, _ = get_train_val_test_split(transform=transform, train_split=train_split)
 train_loader = DataLoader(train_dataset, batch_size=16, num_workers=4, shuffle=False)
 
+# ===== Step 1: Collect predictions and labels for the entire dataset =====
+all_preds = []
+all_labels = []
+with torch.no_grad():
+    for images, labels in tqdm(train_loader, desc="Collecting Predictions"):
+        images = images.to(device)
+        outputs = classifier(images)
+        preds = torch.sigmoid(outputs)
+        all_preds.append(preds.cpu())
+        all_labels.append(labels.cpu())
 
-thresholds = np.linspace(0.0, 1.0, 20)
+all_preds = torch.cat(all_preds, dim=0)   # Shape: (N, num_classes)
+all_labels = torch.cat(all_labels, dim=0)   # Shape: (N, num_classes)
+
+# ===== Step 2: Vectorized threshold search =====
+thresholds = np.linspace(0.0, 1.0, 20)      # Candidate thresholds
 num_classes = 15
 best_threshold = np.zeros(num_classes)
 best_f1 = np.zeros(num_classes)
 
-for i in tqdm(range(num_classes)):
-    for thres in tqdm(thresholds):
-        total_tp, total_fp, total_fn = 0, 0, 0
-        for batch in tqdm(train_loader):
-            images, labels = batch
-            images = images.to(next(classifier.parameters()).device)
-            labels = labels.to(next(classifier.parameters()).device)
-            with torch.no_grad():
-                outputs = classifier(images)
-                probs = torch.sigmoid(outputs)
-            preds = (probs[:, i] > thres).float()
-            labeli = labels[:, i].float()
-            
-            tp = torch.sum(preds * labeli).item()
-            fp = torch.sum(preds * (1 - labeli)).item()
-            fn = torch.sum((1 - preds) * labeli).item()
-            
-            total_tp += tp
-            total_fp += fp
-            total_fn += fn
+# Convert thresholds to torch tensor for vectorized operations
+thresholds_tensor = torch.tensor(thresholds, dtype=torch.float)
 
-        denominator = (2 * total_tp + total_fp + total_fn)
-        if denominator == 0:
-            current_f1 = 0.0
-        else:
-            current_f1 = 2 * total_tp / denominator
+# For each class, compute F1 scores for all thresholds at once
+for i in range(num_classes):
+    # Get predictions and ground truth for class i
+    p = all_preds[:, i]       # (N,)
+    gt = all_labels[:, i]     # (N,)
+    
+    # Expand dims: thresholds_tensor shape (T, 1) vs. p shape (N,)
+    # Compare each threshold with all predictions
+    preds = (p.unsqueeze(0) >= thresholds_tensor.unsqueeze(1)).float()  # Shape: (T, N)
+    
+    # Compute true positives, false positives, and false negatives for each threshold
+    tp = (preds * gt.unsqueeze(0)).sum(dim=1)
+    fp = (preds * (1 - gt.unsqueeze(0))).sum(dim=1)
+    fn = ((1 - preds) * gt.unsqueeze(0)).sum(dim=1)
+    
+    # Compute F1 score vector (add a tiny constant to denominator to avoid division by zero)
+    denominator = 2 * tp + fp + fn + 1e-7
+    f1_scores = 2 * tp / denominator
+    
+    # Choose the threshold with the best F1 score
+    best_idx = torch.argmax(f1_scores)
+    best_f1[i] = f1_scores[best_idx].item()
+    best_threshold[i] = thresholds_tensor[best_idx].item()
 
-        if current_f1 > best_f1[i]:
-            best_f1[i] = current_f1
-            best_threshold[i] = thres
 
 for i in range(num_classes):
     print(f"Class {i}: Best threshold = {best_threshold[i]:.3f}, F1 score = {best_f1[i]:.3f}")
