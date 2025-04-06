@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 # import numpy as np
 
 # def soft_f1_loss(y_pred, y_true, class_weights=None, eps=1e-7):
