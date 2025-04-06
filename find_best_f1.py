@@ -6,6 +6,9 @@ from tqdm import tqdm
 
 from modelUtils import Classifier
 from dataUtils import get_train_val_test_split
+import torch.multiprocessing
+torch.multiprocessing.set_sharing_strategy('file_system')
+
 
 # Set device and load the model
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -47,7 +50,7 @@ best_f1 = np.zeros(num_classes)
 thresholds_tensor = torch.tensor(thresholds, dtype=torch.float)
 
 # For each class, compute F1 scores for all thresholds at once
-for i in range(num_classes):
+for i in tqdm(range(num_classes)):
     # Get predictions and ground truth for class i
     p = all_preds[:, i]       # (N,)
     gt = all_labels[:, i]     # (N,)
