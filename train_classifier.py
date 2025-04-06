@@ -473,7 +473,7 @@ if __name__ == "__main__":
     all_preds_test = torch.cat(all_preds_test, dim=0)   # Shape: (N, num_classes)
     all_labels_test = torch.cat(all_labels_test, dim=0)   # Shape: (N, num_classes)
     # Compute F1 scores using the best thresholds
-    all_preds_test = (all_preds_test >= torch.tensor(best_threshold).to(device)).float()
+    all_preds_test = (all_preds_test >= torch.tensor(best_threshold).float())
     all_labels_test = all_labels_test.float()
     print(f"Test F1 score: {f1_score(all_labels_test.cpu(), all_preds_test.cpu(), average='macro', zero_division=0)}")
     for i in range(1,200,10):
