@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
+import tqdm
 
 from modelUtils import Classifier
 from dataUtils import get_train_val_test_split
@@ -25,8 +26,8 @@ num_classes = 15
 best_threshold = np.zeros(num_classes)
 best_f1 = np.zeros(num_classes)
 
-for i in range(num_classes):
-    for thres in thresholds:
+for i in tqdm(range(num_classes)):
+    for thres in tqdm(thresholds):
         total_tp, total_fp, total_fn = 0, 0, 0
         for batch in train_loader:
             images, labels = batch
