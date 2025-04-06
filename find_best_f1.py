@@ -29,7 +29,7 @@ best_f1 = np.zeros(num_classes)
 for i in tqdm(range(num_classes)):
     for thres in tqdm(thresholds):
         total_tp, total_fp, total_fn = 0, 0, 0
-        for batch in train_loader:
+        for batch in tqdm(train_loader):
             images, labels = batch
             images = images.to(next(classifier.parameters()).device)
             labels = labels.to(next(classifier.parameters()).device)
