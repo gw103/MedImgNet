@@ -41,43 +41,28 @@ def validate_model(model, val_loader, device, criterion):
             outputs = model(images)
             loss = criterion(outputs, labels)
             val_running_loss += loss.item()
-            
-            # Get binary predictions from probabilities
             predicted = (torch.sigmoid(outputs) > 0.5).float()
-            
-            # Overall correct predictions and total number of labels
             val_correct += (predicted == labels).sum().item()
             val_total += labels.numel()
-            
-            # Per-class correct predictions
             correct_per_class = (predicted == labels).sum(dim=0)
             val_correct_list.append(correct_per_class)
-            
-            # Accumulate predictions and labels for F1 calculation
             val_all_preds.append(predicted.cpu())
             val_all_labels.append(labels.cpu())
-            
-            # Count exact match samples (all labels correct)
             val_exact_match_count += (predicted == labels).all(dim=1).sum().item()
     
-    # Compute average loss
     avg_loss = val_running_loss / len(val_loader)
     
-    # Overall accuracy: total correct / total predictions
     overall_accuracy = val_correct / val_total
     
-    # Per-class accuracy: stack and sum over batches, then divide by number of samples
     val_correct_list = torch.stack(val_correct_list).sum(dim=0)
     per_class_accuracy = val_correct_list / len(val_loader.dataset)
     
-    # Concatenate predictions and labels (shape: [num_samples, num_classes])
     all_preds_tensor = torch.cat(val_all_preds, dim=0).numpy()
     all_labels_tensor = torch.cat(val_all_labels, dim=0).numpy()
     
     # Exact match: fraction of samples with all labels correct
     exact_match = val_exact_match_count / len(all_preds_tensor)
     
-    # F1 scores using scikit-learn (make sure to import f1_score from sklearn.metrics)
     f1_macro = f1_score(all_labels_tensor, all_preds_tensor, average='macro', zero_division=0)
     f1_micro = f1_score(all_labels_tensor, all_preds_tensor, average='micro', zero_division=0)
     f1_per_class = f1_score(all_labels_tensor, all_preds_tensor, average=None, zero_division=0)
@@ -138,7 +123,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     val_exact_matches = []
     best_model_state = None
     val_overall_acc_list = []
-    best_f1 = 0
+    best_loss = float('inf')
 
     for epoch in tqdm(range(num_epochs)):
         print(epoch, flush=True)
@@ -253,17 +238,17 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
             f"train_exact_match: {matches / len(train_loader.dataset)}, val_exact_match: {val_exact_match}",
             flush=True)
 
-        if overall_f1_val > best_f1:
-            best_f1 = overall_f1_val
+        if val_avg_loss < best_loss:
+            best_loss = val_avg_loss
             best_model_state = model.state_dict()
-            counter = 0  # reset patience
+            counter = 0
         else:
             counter += 1
             if counter >= patience:
-                print(f"Early stopping triggered at epoch {epoch}")
-                model.load_state_dict(best_model_state)
+                print(f"Early stopping at epoch {epoch}", flush=True)
                 break
-
+    model.load_state_dict(best_model_state)
+    print(f"Best model loaded with loss: {best_loss}", flush=True)
     output_folder = "results"
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -341,8 +326,7 @@ if __name__ == "__main__":
         transforms.Resize((224, 224)),
         transforms.ToTensor()
     ])
-    train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list, classifier,train,val,test=train_classifier(batch_size=16, num_workers=4, num_epochs=1, transform=transform,learning_rate=0.001, model_dir='model.pth',finetune=True)
-    # Define epochs (assuming one metric per epoch)
+    train_losses, train_overall_acc_list, train_exact_matches, train_f1_overall_list, val_losses, val_overall_acc_list, val_exact_matches, val_f1_overall_list, classifier,train,val,test=train_classifier(batch_size=16, num_workers=4, num_epochs=200, transform=transform,learning_rate=0.001, model_dir='model.pth',finetune=True)
     epochs = range(1, len(train_losses) + 1)
     results_folder = "results"
     # ------------------------------
@@ -420,14 +404,10 @@ if __name__ == "__main__":
 
     all_preds = torch.cat(all_preds, dim=0)   # Shape: (N, num_classes)
     all_labels = torch.cat(all_labels, dim=0)   # Shape: (N, num_classes)
-
-    # ===== Step 2: Vectorized threshold search =====
     thresholds = np.linspace(0.0, 1.0, 20)      # Candidate thresholds
     num_classes = 15
     best_threshold = np.zeros(num_classes)
     best_f1 = np.zeros(num_classes)
-
-    # Convert thresholds to torch tensor for vectorized operations
     thresholds_tensor = torch.tensor(thresholds, dtype=torch.float)
 
     # For each class, compute F1 scores for all thresholds at once
@@ -485,12 +465,9 @@ if __name__ == "__main__":
         train_img = train_img.cpu().numpy()
         test_img = test_img.cpu().numpy()
         test_labels = test_labels.cpu().numpy()
-        plt.imshow(train_img[0], cmap='gray')
-        plt.title(f"Train Image {i}, Pred: {train_pred}, Labels: {train_labels}")
-        plt.close()
-        plt.imshow(test_img[0], cmap='gray')
-        plt.title(f"Test Image {i}, Pred: {train_pred}, Labels: {test_labels}")
-        plt.close()
+        print(f"Train Image {i}, Pred: {train_pred}, Labels: {train_labels}")
+        print(f"Test Image {i}, Pred: {train_pred}, Labels: {test_labels}")
+
     
 
 
