@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
-import tqdm as tqdm
+from tqdm import tqdm
 
 from modelUtils import Classifier
 from dataUtils import get_train_val_test_split
