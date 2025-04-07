@@ -12,6 +12,7 @@ from tqdm import tqdm
 from sklearn.metrics import f1_score, precision_score, recall_score
 import os
 import torch.multiprocessing
+
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 def validate_model(model, val_loader, device, criterion):
@@ -104,7 +105,8 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
     # criterion = BCEWithConstraintAndF1Loss(pos_weight=pos_weight_tensor,penalty_weight=1).to(device)
     criterion = FocalLoss(gamma=2).to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-5)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3, factor=0.5, verbose=True)
+
 
     counter = 0
 
@@ -155,7 +157,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
 
             loss.backward()
             optimizer.step()
-        scheduler.step()
+        
     
         # train losses
         train_avg_loss = running_loss / len(train_loader)
@@ -209,6 +211,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
                 matches_val += (predicted == labels).all(dim=1).sum().item()
         # val losses
         val_avg_loss = running_loss_val / len(val_loader)
+        scheduler.step(val_avg_loss)
         val_losses.append(val_avg_loss)
         # val accuracy per class
         val_correct_list = torch.stack(val_correct_list).sum(dim=0)
