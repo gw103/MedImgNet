@@ -9,6 +9,8 @@ import pandas as pd
 import os
 from torchvision import transforms
 from google.cloud import storage
+from sklearn.model_selection import train_test_split
+
 
 
 def load_images_from_gcs(bucket_name, directory='datasets/nih-chest-xrays/images_001/images/', num_images=None):
@@ -46,25 +48,31 @@ def load_images_from_gcs(bucket_name, directory='datasets/nih-chest-xrays/images
     print(f"Total images loaded: {len(images)}")
     
     return images
-def get_train_val_test_split(transform,train_split=0.8, val_split=0.1):
-        dataset = ImageLabelDataset(transform=transform)
-        print("Dataset length: ", len(dataset),flush=True)
-        l = len(dataset)
-        train_size = int(len(dataset) * train_split)
+def get_train_val_test_split(transform, train_split=0.8, val_split=0.1):
 
-        train_dataset, test_val_dataset = random_split(dataset, [train_size,l-train_size])
+    dataset = ImageLabelDataset(transform=transform)
+    print("Dataset length: ", len(dataset), flush=True)
+    # Extract labels from the dataset (multi-hot encoded labels)
+    all_labels = [dataset[i][1].numpy() for i in range(len(dataset))]
+    # Stratified split for train and test/val datasets
+    X = list(range(len(dataset))) 
+    y = np.array(all_labels)  
+    train_idx, temp_idx = train_test_split(X, test_size=1-train_split, stratify=y, random_state=42)
+    val_size = int(len(temp_idx) * val_split)
+    test_size = len(temp_idx) - val_size
+    val_idx, test_idx = train_test_split(temp_idx, test_size=test_size, stratify=y[temp_idx], random_state=42)
 
-        l0 = len(test_val_dataset)
-        val_size = int(l* val_split)
-        test_size = l0 - val_size
+    train_dataset = torch.utils.data.Subset(dataset, train_idx)
+    val_dataset = torch.utils.data.Subset(dataset, val_idx)
+    test_dataset = torch.utils.data.Subset(dataset, test_idx)
 
-        val_dataset, test_dataset = random_split(test_val_dataset, [val_size, test_size])
-
-        print("Train dataset length: ", len(train_dataset),flush=True)
-        print("Validation dataset length: ", len(val_dataset),flush=True)
-        print("Test dataset length: ", len(test_dataset),flush=True)
-        print("*"*10+"Loading data"+"*"*10,flush=True)
-        return train_dataset, val_dataset, test_dataset
+    print("Train dataset length: ", len(train_dataset), flush=True)
+    print("Validation dataset length: ", len(val_dataset), flush=True)
+    print("Test dataset length: ", len(test_dataset), flush=True)
+    
+    print("*" * 10 + "Loading data" + "*" * 10, flush=True)
+    
+    return train_dataset, val_dataset, test_dataset
 def compute_pos_weight_tensor(device, k=0, log_scale_if_gt1=True):
     counts = {
         "Atelectasis": 15430,
