@@ -103,7 +103,7 @@ def train_classifier(batch_size, num_workers, num_epochs, learning_rate, model_d
                     param.requires_grad = False
     pos_weight_tensor = compute_pos_weight_tensor(device)
     # criterion = BCEWithConstraintAndF1Loss(pos_weight=pos_weight_tensor,penalty_weight=1).to(device)
-    criterion = FocalLoss(gamma=2).to(device)
+    criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-5)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3, factor=0.5, verbose=True)
 
