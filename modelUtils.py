@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torchvision
 class Classifier(nn.Module):
-    def __init__(self, backbone='resnet50', num_classes=15, pretrained=False):
+    def __init__(self, backbone='resnet50', num_classes=9, pretrained=False):
         super(Classifier, self).__init__()
         self.backbone = backbone.lower()
         if self.backbone in ['resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']:

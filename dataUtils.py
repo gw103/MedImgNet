@@ -181,14 +181,9 @@ class ImageLabelDataset(Dataset):
             'Nodule': 5,
             'Pneumonia': 6,
             'Pneumothorax': 7,
-            'Consolidation': 8,
-            'Edema': 9,
-            'Emphysema': 10,
-            'Fibrosis': 11,
-            'Pleural_Thickening': 12,
-            'Hernia': 13,
-            "No Finding": 14
+            "No Finding": 8
         }
+
         
         self.directories = [
             '../datasets/nih-chest-xrays/images_001/images/',
@@ -222,7 +217,7 @@ class ImageLabelDataset(Dataset):
         labels = label_str.split('|')
         encoded_labels = [self.label_map[label.strip()] for label in labels if label.strip() in self.label_map]
         
-        # Create a multi-hot encoded label vector (14 classes in total)
+        # Create a multi-hot encoded label vector (9 classes in total)
         multi_hot_label = torch.zeros(len(self.label_map), dtype=torch.long)
         for label in encoded_labels:
             multi_hot_label[label] = 1

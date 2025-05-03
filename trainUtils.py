@@ -128,7 +128,7 @@ counts = {
     "Fibrosis": 2029,
     "Pleural_Thickening": 4630,
     "Hernia": 292,
-    "No Finding": 79030
+    "No Finding": 6000
 }
 total_samples = 111601
 
