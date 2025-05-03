@@ -26,3 +26,5 @@ df_final = pd.concat([
     others,
     only_nf.sample(frac=0.1, random_state=42)
 ])
+df_final.to_csv(save_path, index=False)
+
